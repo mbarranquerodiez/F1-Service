@@ -1,26 +1,17 @@
 import express from 'express';
 import userRoutes from './routes/userRoutes';
-import movieRoutes from './routes/movieRoutes';
-import showtimeRoutes from './routes/showtimeRoutes';
-import reservationsRoutes from './routes/reservationRoutes';
-import seatRoutes from './routes/seatRoutes';
-import roomRoutes from './routes/roomRoutes';
-import loggerMiddleware from './middleware/loggerMiddleware';
+import endpointRoutes from './routes/endpointRoutes';
+
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Middleware
 app.use(express.json());
-app.use(loggerMiddleware); // Middleware para registrar solicitudes
 
 // Rutas
 app.use('/api/users', userRoutes);
-app.use('/api/movies', movieRoutes);
-app.use('/api/showtimes', showtimeRoutes);
-app.use('/api/reservations', reservationsRoutes);
-app.use('/api/seats', seatRoutes);
-app.use('/api/rooms', roomRoutes);
+app.use('/api/endpoints', endpointRoutes);
+
 
 
 // Iniciar el servidor

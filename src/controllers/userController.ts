@@ -11,24 +11,23 @@ dotenv.config();
 const JWT_SECRET = process.env.JWT_SECRET;
 
 /**
- * Add a new user.
+ * Añadir un nuevo usuario.
  * @route POST /api/users/add
  * @group User
- * @param {string} username.body.required - User's username
- * @param {string} password.body.required - User's password
- * @param {string} email.body.required - User's email
- * @param {string} role.body.required - Type of the user
- * @returns {object} 200 - User added successfully
- * @returns {object} 400 - Bad request
- * @returns {object} 409 - Conflict, username already exists
- * @returns {object} 500 - Internal server error
+ * @param {string} username.body.required - Nombre de usuario
+ * @param {string} password.body.required - Contraseña del usuario
+ * @param {string} email.body.required - Email del usuario
+ * @returns {object} 200 - Usuario añadido correctamente
+ * @returns {object} 400 - Solicitud incorrecta
+ * @returns {object} 409 - Conflicto, el nombre de usuario ya existe
+ * @returns {object} 500 - Error interno del servidor
  */
 export const addUser = async (req: Request, res: Response) => {
-    const { username, password, email, role } = req.body;
+    const { username, password, email } = req.body;
     const endpoint = `${req.method} ${req.url}`;
     const ip = req.headers['x-forwarded-for'] as string || req.socket.remoteAddress || '';
 
-    if (!username || !password || !email || !role) {
+    if (!username || !password || !email) {
         return sendBadParam(res, undefined, ip, 'Todos los campos son obligatorios', endpoint);
     }
 
@@ -44,8 +43,8 @@ export const addUser = async (req: Request, res: Response) => {
 
         const hashedPassword = await bcrypt.hash(password, 10);
         const created_at = Math.floor(Date.now() / 1000);
-        const query = 'INSERT INTO users (username, password, email, role, created_at) VALUES (?, ?, ?, ?, ?)';
-        await db.promise().query<ResultSetHeader>(query, [username, hashedPassword, email, role, created_at]);
+        const query = 'INSERT INTO users (username, password, email, created_at) VALUES (?, ?, ?, ?)';
+        await db.promise().query<ResultSetHeader>(query, [username, hashedPassword, email, created_at]);
 
         return sendOk(res, undefined, ip, { message: 'Usuario añadido correctamente' }, endpoint);
 
@@ -56,15 +55,15 @@ export const addUser = async (req: Request, res: Response) => {
 };
  
 /**
- * Login a user.
+ * Iniciar sesión de usuario.
  * @route POST /api/users/login
  * @group User
- * @param {string} username.body.required - User's username
- * @param {string} password.body.required - User's password
- * @returns {object} 200 - Login successful with token
- * @returns {object} 400 - Bad request
- * @returns {object} 401 - Unauthorized
- * @returns {object} 500 - Internal server error
+ * @param {string} username.body.required - Nombre de usuario
+ * @param {string} password.body.required - Contraseña del usuario
+ * @returns {object} 200 - Inicio de sesión exitoso con token
+ * @returns {object} 400 - Solicitud incorrecta
+ * @returns {object} 401 - No autorizado
+ * @returns {object} 500 - Error interno del servidor
  */
 export const loginUser = async (req: Request, res: Response) => {
     const { username, password } = req.body;
@@ -91,7 +90,7 @@ export const loginUser = async (req: Request, res: Response) => {
             throw new Error('JWT_SECRET is not defined. Please set it in your environment variables.');
         }
 
-        const token = jwt.sign({ id: user.id, username: user.username, role: user.role }, JWT_SECRET, { expiresIn: '1h' });
+        const token = jwt.sign({ id: user.id, username: user.username }, JWT_SECRET, { expiresIn: '1h' });
         return sendOk(res, undefined, ip, { message: 'Inicio de sesión exitoso', token }, endpoint);
         
     } catch (error) {
@@ -101,16 +100,16 @@ export const loginUser = async (req: Request, res: Response) => {
 };
 
 /**
- * Change the password for a user.
+ * Cambiar la contraseña de un usuario.
  * @route PATCH /api/users/changepassword
  * @group User
- * @param {string} username.body.required - User's username
- * @param {string} oldPassword.body.required - User's oldPassword
- * @param {string} newPassword.body.required - User's newPassword
- * @returns {object} 200 - Password updated successfully
- * @returns {object} 400 - Bad request
- * @returns {object} 401 - Unauthorized, incorrect username or old password
- * @returns {object} 500 - Internal server error
+ * @param {string} username.body.required - Nombre de usuario
+ * @param {string} oldPassword.body.required - Contraseña anterior
+ * @param {string} newPassword.body.required - Nueva contraseña
+ * @returns {object} 200 - Contraseña actualizada correctamente
+ * @returns {object} 400 - Solicitud incorrecta
+ * @returns {object} 401 - No autorizado, nombre de usuario o contraseña anterior incorrectos
+ * @returns {object} 500 - Error interno del servidor
  */
 export const changePassword = async (req: Request, res: Response) => {
     const { username, oldPassword, newPassword } = req.body;
@@ -131,6 +130,11 @@ export const changePassword = async (req: Request, res: Response) => {
         const isMatch = await bcrypt.compare(oldPassword, user.password);
         if (!isMatch) {
             return sendUnauthorized(res, undefined, ip, 'Contraseña incorrecta', endpoint);
+        }
+
+        const isSamePassword = await bcrypt.compare(newPassword, user.password);
+        if (isSamePassword) {
+            return sendBadParam(res, undefined, ip, 'La nueva contraseña no puede ser igual a la anterior', endpoint);
         }
 
         const hashedNewPassword = await bcrypt.hash(newPassword, 10);
