@@ -4,6 +4,5 @@ const express_1 = require("express");
 const endpointsController_1 = require("../controllers/endpointsController");
 const router = (0, express_1.Router)();
 router.get('/races/:year', endpointsController_1.getAllYearRaces);
-router.get('/location/:city/:country', endpointsController_1.getCityCoordinates);
-router.get('/weather/:lat/:lon/:timestamp', endpointsController_1.getWeatherAtTime);
+router.get('/weather/:city/:country/:timestamp', endpointsController_1.getWeather);
 exports.default = router;

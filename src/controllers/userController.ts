@@ -6,6 +6,7 @@ import { ResultSetHeader, RowDataPacket } from 'mysql2';
 import { sendOk, sendBadParam, sendUnauthorized, sendServerError, sendConflict } from '../utils/messages';
 import jwt from 'jsonwebtoken';
 
+
 dotenv.config();
 
 const JWT_SECRET = process.env.JWT_SECRET;
@@ -42,9 +43,9 @@ export const addUser = async (req: Request, res: Response) => {
         }
 
         const hashedPassword = await bcrypt.hash(password, 10);
-        const created_at = Math.floor(Date.now() / 1000);
-        const query = 'INSERT INTO users (username, password, email, created_at) VALUES (?, ?, ?, ?)';
-        await db.promise().query<ResultSetHeader>(query, [username, hashedPassword, email, created_at]);
+        // Omitir created_at en la consulta, ya que usa CURRENT_TIMESTAMP por defecto
+        const query = 'INSERT INTO users (username, password, email) VALUES (?, ?, ?)';
+        await db.promise().query<ResultSetHeader>(query, [username, hashedPassword, email]);
 
         return sendOk(res, undefined, ip, { message: 'Usuario añadido correctamente' }, endpoint);
 
@@ -91,6 +92,12 @@ export const loginUser = async (req: Request, res: Response) => {
         }
 
         const token = jwt.sign({ id: user.id, username: user.username }, JWT_SECRET, { expiresIn: '1h' });
+        res.cookie('access_token', token, {
+            httpOnly: true, // Evita acceso desde JavaScript (mejora seguridad)
+            secure: process.env.NODE_ENV === 'production', // Solo HTTPS en producción
+            sameSite: 'strict', // Protege contra CSRF
+            maxAge: 3600 * 1000 // 1 hora en milisegundos
+        });
         return sendOk(res, undefined, ip, { message: 'Inicio de sesión exitoso', token }, endpoint);
         
     } catch (error) {
@@ -152,3 +159,5 @@ export const changePassword = async (req: Request, res: Response) => {
         return sendServerError(res, undefined, ip, 'Error en el servidor', endpoint);
     }
 };
+
+

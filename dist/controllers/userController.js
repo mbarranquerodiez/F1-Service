@@ -49,9 +49,9 @@ const addUser = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
             return (0, messages_1.sendConflict)(res, undefined, ip, 'El email ya está en uso', endpoint);
         }
         const hashedPassword = yield bcrypt_1.default.hash(password, 10);
-        const created_at = Math.floor(Date.now() / 1000);
-        const query = 'INSERT INTO users (username, password, email, created_at) VALUES (?, ?, ?, ?)';
-        yield db_1.default.promise().query(query, [username, hashedPassword, email, created_at]);
+        // Omitir created_at en la consulta, ya que usa CURRENT_TIMESTAMP por defecto
+        const query = 'INSERT INTO users (username, password, email) VALUES (?, ?, ?)';
+        yield db_1.default.promise().query(query, [username, hashedPassword, email]);
         return (0, messages_1.sendOk)(res, undefined, ip, { message: 'Usuario añadido correctamente' }, endpoint);
     }
     catch (error) {
@@ -92,6 +92,12 @@ const loginUser = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
             throw new Error('JWT_SECRET is not defined. Please set it in your environment variables.');
         }
         const token = jsonwebtoken_1.default.sign({ id: user.id, username: user.username }, JWT_SECRET, { expiresIn: '1h' });
+        res.cookie('access_token', token, {
+            httpOnly: true, // Evita acceso desde JavaScript (mejora seguridad)
+            secure: process.env.NODE_ENV === 'production', // Solo HTTPS en producción
+            sameSite: 'strict', // Protege contra CSRF
+            maxAge: 3600 * 1000 // 1 hora en milisegundos
+        });
         return (0, messages_1.sendOk)(res, undefined, ip, { message: 'Inicio de sesión exitoso', token }, endpoint);
     }
     catch (error) {

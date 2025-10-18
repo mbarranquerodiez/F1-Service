@@ -1,0 +1,175 @@
+```css
+/* stylelint-disable @stylistic/selector-list-comma-newline-after */
+
+body {
+    font-family: "Playfair Display", Georgia, "Times New Roman", serif;
+    background: #000000; /* Mantener fondo negro/gris oscuro */
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    color: #FFFFFF; /* Blanco para texto general */
+}
+
+.container {
+    max-width: 720px; /* Ancho original de Bootstrap Blog */
+}
+
+.container-fluid {
+    max-width: 100%; /* Ocupa todo el ancho */
+    padding-left: 15px;
+    padding-right: 15px;
+}
+
+.p-4.p-md-5.mb-4.rounded.text-body-emphasis.bg-dark {
+    background: #1C2526; /* Fondo más oscuro para la tarjeta principal */
+    border-radius: 0.3rem;
+    border: 2px solid #FF0000; /* Borde rojo para énfasis */
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+    padding: 1.5rem;
+}
+
+@media (min-width: 768px) {
+    .p-4.p-md-5.mb-4.rounded.text-body-emphasis.bg-dark {
+        padding: 3rem;
+    }
+}
+
+.col-lg-12.text-center {
+    max-width: 100%;
+}
+
+.blog-header-logo {
+    font-family: "Playfair Display", Georgia, "Times New Roman", serif;
+    font-size: 2.25rem;
+    color: #FF0000; /* Rojo para el logo */
+}
+
+.blog-header-logo:hover {
+    text-decoration: none;
+    color: #CC0000; /* Rojo oscuro al hover */
+}
+
+h1, h2, h3, h4, h5, h6 {
+    font-family: "Playfair Display", Georgia, "Times New Roman", serif;
+    color: #FF0000; /* Rojo para encabezados */
+}
+
+.display-4.fst-italic {
+    color: #FF0000; /* Rojo para el título Fórmula 1 */
+    font-size: 2.5rem;
+    font-weight: 700;
+    font-style: italic;
+}
+
+.lead.my-3 {
+    color: #FFFFFF; /* Blanco para el texto lead */
+    font-size: 1.25rem;
+    margin: 1rem 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+.lead.mb-0 a {
+    color: #FF0000; /* Rojo para enlace */
+    text-decoration: none;
+    font-weight: 700;
+}
+
+.lead.mb-0 a:hover {
+    color: #CC0000; /* Rojo oscuro al hover */
+}
+
+.races-info {
+    margin-top: 2rem;
+}
+
+.race-section.card {
+    margin-bottom: 4rem;
+    background: #2A2A2A; /* Fondo más oscuro para secciones */
+    border: 1px solid #FF0000; /* Borde rojo */
+    border-radius: 0.3rem;
+}
+
+.race-section .card-body {
+    padding: 1.5rem;
+}
+
+.race-section h2.card-title {
+    color: #FF0000; /* Rojo para subtítulos */
+    font-size: 1.75rem;
+    font-weight: 700;
+    margin-bottom: 1rem;
+    border-bottom: 2px solid #FF0000;
+    padding-bottom: 0.5rem;
+}
+
+.race-section h3 {
+    color: #FF0000; /* Rojo para nombres de carreras */
+    font-size: 1.5rem;
+    font-weight: 500;
+    margin-bottom: 0.75rem;
+}
+
+.race-section h4 {
+    color: #FF0000; /* Rojo para subtítulos secundarios */
+    font-size: 1.25rem;
+    font-weight: 500;
+    margin-top: 1.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.race-section p, .race-section li {
+    color: #FFFFFF; /* Blanco para texto */
+    font-size: 1rem;
+    margin-bottom: 0.5rem;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+.race-section p a, .race-section li a {
+    color: #FF0000; /* Rojo para enlaces */
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.race-section p a:hover, .race-section li a:hover {
+    color: #CC0000; /* Rojo oscuro al hover */
+    text-decoration: underline;
+}
+
+.race-section p.error {
+    color: #FF0000; /* Rojo para mensajes de error */
+    font-weight: 500;
+    font-style: italic;
+    font-size: 1rem;
+}
+
+.blog-post {
+    margin-bottom: 4rem;
+}
+
+.blog-post-meta {
+    margin-bottom: 1.25rem;
+    color: #FFFFFF; /* Blanco para metadatos */
+    font-size: 0.875rem;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+.flex-auto {
+    flex: 0 0 auto;
+}
+
+.h-250 {
+    height: 250px;
+}
+
+@media (min-width: 768px) {
+    .h-md-250 {
+        height: 250px;
+    }
+}
+
+.blog-pagination {
+    margin-bottom: 4rem;
+}
+```

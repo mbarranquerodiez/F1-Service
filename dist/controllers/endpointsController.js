@@ -9,48 +9,72 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getAllYearRaces = exports.getCityCoordinates = exports.getWeatherAtTime = void 0;
+exports.getRacesInfo = exports.getAllYearRaces = exports.getWeather = void 0;
+const messages_1 = require("../utils/messages");
+const tokenDecode_1 = require("../utils/tokenDecode");
 /**
- * Obtener el tiempo histórico en unas coordenadas y fecha usando Open-Meteo.
- * @route GET /api/weather/:lat/:lon/:timestamp
+ * Obtener el tiempo histórico en una ciudad y país en una fecha usando Nominatim y Open-Meteo.
+ * @route GET /api/endpoints/weather/:city/:country/:timestamp
  * @group Weather
- * @param {string} lat.path.required - Latitud
- * @param {string} lon.path.required - Longitud
+ * @param {string} city.path.required - Nombre de la ciudad
+ * @param {string} country.path.required - Nombre del país
  * @param {string} timestamp.path.required - Fecha y hora en formato ISO (YYYY-MM-DDTHH:mm)
  * @returns {object} 200 - Información meteorológica
  * @returns {object} 400 - Solicitud incorrecta
- * @returns {object} 404 - Datos no encontrados
+ * @returns {object} 404 - Ciudad o datos meteorológicos no encontrados
  * @returns {object} 500 - Error interno del servidor
  */
-const getWeatherAtTime = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+const getWeather = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const endpoint = `${req.method} ${req.url}`;
     const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || '';
-    const { lat, lon, timestamp } = req.params;
-    if (!lat || !lon || !timestamp) {
-        return (0, messages_1.sendBadParam)(res, undefined, ip, 'Latitud, longitud y timestamp son obligatorios', endpoint);
+    const { city, country, timestamp } = req.params;
+    if (!city || !country || !timestamp) {
+        return (0, messages_1.sendBadParam)(res, undefined, ip, 'Ciudad, país y fecha son obligatorios', endpoint);
     }
     try {
-        // Open-Meteo API para datos históricos
-        const apiUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=temperature_2m,precipitation,weathercode&start_date=${timestamp.substring(0, 10)}&end_date=${timestamp.substring(0, 10)}&timezone=auto`;
-        console.log('Petición a la URL:', apiUrl);
+        // 1. Obtener coordenadas con Nominatim
+        const nominatimUrl = `https://nominatim.openstreetmap.org/search?city=${encodeURIComponent(city)}&country=${encodeURIComponent(country)}&format=json`;
+        console.log('Petición a la URL Nominatim:', nominatimUrl);
         const fetch = require('node-fetch');
-        const response = yield fetch(apiUrl);
-        if (!response.ok) {
+        const nominatimRes = yield fetch(nominatimUrl);
+        if (!nominatimRes.ok) {
+            return (0, messages_1.sendServerError)(res, undefined, ip, 'Error al consultar la API de Nominatim', endpoint);
+        }
+        const nominatimData = yield nominatimRes.json();
+        if (!Array.isArray(nominatimData) || nominatimData.length === 0) {
+            return (0, messages_1.sendNotFound)(res, undefined, ip, 'Ciudad no encontrada', endpoint);
+        }
+        const { lat, lon, display_name } = nominatimData[0];
+        // 2. Obtener tiempo con Open-Meteo (histórico o pronóstico)
+        const date = timestamp.substring(0, 10);
+        const hour = timestamp.substring(11, 16); // HH:mm
+        const today = new Date().toISOString().substring(0, 10);
+        let meteoUrl;
+        if (date < today) {
+            // Datos históricos desde el año 2000 usando archive-api
+            meteoUrl = `https://archive-api.open-meteo.com/v1/archive?latitude=${lat}&longitude=${lon}&hourly=temperature_2m,rain,precipitation&start_date=${date}&end_date=${date}&timezone=auto`;
+        }
+        else {
+            // Datos actuales/futuros
+            meteoUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=temperature_2m,precipitation&start_date=${date}&end_date=${date}&timezone=auto`;
+        }
+        const meteoRes = yield fetch(meteoUrl);
+        if (!meteoRes.ok) {
             return (0, messages_1.sendServerError)(res, undefined, ip, 'Error al consultar la API de Open-Meteo', endpoint);
         }
-        const data = yield response.json();
-        if (!data.hourly || !data.hourly.time) {
+        const meteoData = yield meteoRes.json();
+        if (!meteoData.hourly || !meteoData.hourly.time) {
             return (0, messages_1.sendNotFound)(res, undefined, ip, 'No se encontraron datos meteorológicos', endpoint);
         }
         // Buscar el índice de la hora exacta
-        const index = data.hourly.time.findIndex((t) => t.startsWith(timestamp));
+        const index = meteoData.hourly.time.findIndex((t) => t.substring(11, 16) === hour);
         if (index === -1) {
             return (0, messages_1.sendNotFound)(res, undefined, ip, 'No se encontraron datos para ese momento', endpoint);
         }
-        // Devolver solo temperatura y precipitación
+        // Devolver solo temperatura y lluvia
         const result = {
-            temperature_2m: data.hourly.temperature_2m[index],
-            precipitation: data.hourly.precipitation[index]
+            temperature: meteoData.hourly.temperature_2m[index],
+            rain: meteoData.hourly.rain ? meteoData.hourly.rain[index] : undefined
         };
         return (0, messages_1.sendOk)(res, undefined, ip, result, endpoint);
     }
@@ -59,49 +83,7 @@ const getWeatherAtTime = (req, res) => __awaiter(void 0, void 0, void 0, functio
         return (0, messages_1.sendServerError)(res, undefined, ip, 'Error en el servidor', endpoint);
     }
 });
-exports.getWeatherAtTime = getWeatherAtTime;
-/**
- * Obtener coordenadas de una ciudad y país usando Nominatim.
- * @route GET /api/location/:city/:country
- * @group Location
- * @param {string} city.path.required - Nombre de la ciudad
- * @param {string} country.path.required - Nombre del país
- * @returns {object} 200 - Coordenadas de la ciudad
- * @returns {object} 400 - Solicitud incorrecta
- * @returns {object} 404 - Ciudad no encontrada
- * @returns {object} 500 - Error interno del servidor
- */
-const getCityCoordinates = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    const endpoint = `${req.method} ${req.url}`;
-    const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || '';
-    const { city, country } = req.params;
-    if (!city || !country) {
-        return (0, messages_1.sendBadParam)(res, undefined, ip, 'Ciudad y país son obligatorios', endpoint);
-    }
-    try {
-        const apiUrl = `https://nominatim.openstreetmap.org/search?city=${encodeURIComponent(city)}&country=${encodeURIComponent(country)}&format=json`;
-        console.log('Petición a la URL:', apiUrl);
-        const fetch = require('node-fetch');
-        const response = yield fetch(apiUrl);
-        if (!response.ok) {
-            return (0, messages_1.sendServerError)(res, undefined, ip, 'Error al consultar la API de Nominatim', endpoint);
-        }
-        const data = yield response.json();
-        if (!Array.isArray(data) || data.length === 0) {
-            return (0, messages_1.sendNotFound)(res, undefined, ip, 'Ciudad no encontrada', endpoint);
-        }
-        // Devolver solo la primera coincidencia
-        const { lat, lon, display_name } = data[0];
-        return (0, messages_1.sendOk)(res, undefined, ip, { lat, lon, display_name }, endpoint);
-    }
-    catch (error) {
-        console.error('Error al procesar la solicitud:', error);
-        return (0, messages_1.sendServerError)(res, undefined, ip, 'Error en el servidor', endpoint);
-    }
-});
-exports.getCityCoordinates = getCityCoordinates;
-const messages_1 = require("../utils/messages");
-const tokenDecode_1 = require("../utils/tokenDecode");
+exports.getWeather = getWeather;
 /**
  * Obtener todas las carreras por año.
  * @route GET /api/races/{year}
@@ -150,3 +132,38 @@ const getAllYearRaces = (req, res) => __awaiter(void 0, void 0, void 0, function
     }
 });
 exports.getAllYearRaces = getAllYearRaces;
+/**
+ * Obtener todas las carreras por año.
+ * @route GET /api/current/{year}
+ * @group Race
+ * @param {number} year.path.required - Año de las carreras a consultar
+ * @returns {object} 200 - Lista de carreras para el año especificado
+ * @returns {object} 401 - No autorizado, token no proporcionado o inválido
+ * @returns {object} 404 - No se encontraron carreras
+ * @returns {object} 500 - Error interno del servidor
+ * @security Token Bearer
+ */
+const getRacesInfo = () => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        // Solicitud a la API de última carrera
+        const lastRaceResponse = yield fetch('https://f1api.dev/api/current/last');
+        const lastRaceData = yield lastRaceResponse.json();
+        // Solicitud a la API de próxima carrera
+        const nextRaceResponse = yield fetch('https://f1api.dev/api/current/next');
+        const nextRaceData = yield nextRaceResponse.json();
+        // Manejar respuestas
+        const racesInfo = {
+            lastRace: lastRaceResponse.ok ? lastRaceData : { error: lastRaceData.message || 'No se encontraron datos de la última carrera' },
+            nextRace: nextRaceResponse.ok ? nextRaceData : { error: nextRaceData.message || 'No se encontraron datos de la próxima carrera' }
+        };
+        return racesInfo;
+    }
+    catch (error) {
+        console.error('Error al obtener información de carreras:', error);
+        return {
+            lastRace: { error: 'Error al conectar con la API de última carrera' },
+            nextRace: { error: 'Error al conectar con la API de próxima carrera' }
+        };
+    }
+});
+exports.getRacesInfo = getRacesInfo;
