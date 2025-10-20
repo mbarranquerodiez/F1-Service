@@ -173,6 +173,209 @@ export class EndPoitnsController {
 
 
 
+/**
+ * Obtener los pilotos por año.
+ * @route GET /api/endpoints/drivers/{year}
+ * @group Driver
+ * @param {number} year.path.required - Año de los pilotos a consultar
+ * @returns {object} 200 - Lista de pilotos para el año especificado
+ * @returns {object} 401 - No autorizado, token no proporcionado o inválido
+ * @returns {object} 404 - No se encontraron pilotos
+ * @returns {object} 500 - Error interno del servidor
+ * @security Token Bearer
+ */
+export const getYearDrivers = async (req: Request, res: Response) => {
+    const endpoint = `${req.method} ${req.url}`;
+    const ip = (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || '';
 
+    const token = req.headers['authorization']?.split(' ')[1];
+    if (!token) {
+        return sendUnauthorized(res, undefined, ip, 'Token no proporcionado', endpoint);
+    }
+
+    try {
+        const decoded = await verifyToken(token);
+        if (typeof decoded !== 'object' || decoded === null) {
+            console.error('Decodificación fallida, no es un objeto válido.');
+            return sendUnauthorized(res, undefined, ip, 'Token inválido', endpoint);
+        }
+
+        const { year } = req.params;
+        if (!year) {
+            return sendBadParam(res, undefined, ip, 'Año no proporcionado', endpoint);
+        }
+
+        const apiUrl = `https://f1api.dev/api/${year}/drivers`;
+        const fetch = require('node-fetch');
+        const response = await fetch(apiUrl);
+        if (!response.ok) {
+            return sendServerError(res, undefined, ip, 'Error al consultar la API', endpoint);
+        }
+        const data = await response.json();
+
+        let drivers: any[] | undefined = undefined;
+        if (Array.isArray(data?.drivers)) {
+            drivers = data.drivers;
+        } else if (Array.isArray(data)) {
+            drivers = data;
+        }
+
+        if (!drivers || drivers.length === 0) {
+            return sendNotFound(res, undefined, ip, 'No se encontraron pilotos para ese año', endpoint);
+        }
+
+        return sendOk(res, undefined, ip, { drivers }, endpoint);
+    } catch (error) {
+        console.error('Error al procesar la solicitud:', error);
+        return sendServerError(res, undefined, ip, 'Error en el servidor', endpoint);
+    }
+};
+
+/**
+ * Obtener los datos de un piloto en un año concreto.
+ * @route GET /api/drivers/{year}/{id_driver}
+ * @group Driver
+ * @param {number} year.path.required - Año a consultar
+ * @param {string} id_driver.path.required - Identificador del piloto
+ * @returns {object} 200 - Datos del piloto para ese año
+ * @returns {object} 401 - No autorizado, token no proporcionado o inválido
+ * @returns {object} 404 - Piloto no encontrado para ese año
+ * @returns {object} 500 - Error interno del servidor
+ * @security Token Bearer
+ */
+export const getYearDriver = async (req: Request, res: Response) => {
+    const endpoint = `${req.method} ${req.url}`;
+    const ip = (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || '';
+
+    const token = req.headers['authorization']?.split(' ')[1];
+    if (!token) {
+        return sendUnauthorized(res, undefined, ip, 'Token no proporcionado', endpoint);
+    }
+
+    try {
+        const decoded = await verifyToken(token);
+        if (typeof decoded !== 'object' || decoded === null) {
+            console.error('Decodificación fallida, no es un objeto válido.');
+            return sendUnauthorized(res, undefined, ip, 'Token inválido', endpoint);
+        }
+
+        const { year, id_driver } = req.params;
+        if (!year || !id_driver) {
+            return sendBadParam(res, undefined, ip, 'Año e id_driver son obligatorios', endpoint);
+        }
+
+        const apiUrl = `https://f1api.dev/api/${encodeURIComponent(year)}/drivers/${encodeURIComponent(id_driver)}`;
+        const fetch = require('node-fetch');
+        const response = await fetch(apiUrl);
+        if (!response.ok) {
+            // Si la API devuelve 404, reflejamos 404; otros errores -> 500
+            if (response.status === 404) {
+                return sendNotFound(res, undefined, ip, 'Piloto no encontrado para ese año', endpoint);
+            }
+            return sendServerError(res, undefined, ip, 'Error al consultar la API', endpoint);
+        }
+        const data = await response.json();
+
+        // La API puede devolver un objeto o un array con un solo elemento. Normalizamos.
+        let raw: any = undefined;
+        if (Array.isArray(data) && data.length > 0) {
+            raw = data[0];
+        } else if (data && typeof data === 'object') {
+            raw = data;
+        }
+
+        if (!raw) {
+            return sendNotFound(res, undefined, ip, 'Piloto no encontrado para ese año', endpoint);
+        }
+
+        // Extraer y filtrar solo los campos solicitados
+        const d = raw.driver || {};
+        const t = raw.team || {};
+
+        const filtered: any = {
+            driverId: d.driverId,
+            name: d.name,
+            surname: d.surname,
+            nationality: d.nationality,
+            birthday: d.birthday,
+            number: d.number,
+            shortName: d.shortName,
+            team: {
+                teamId: t.teamId,
+                teamName: t.teamName,
+                teamNationality: t.teamNationality,
+                firstAppeareance: t.firstAppeareance,
+                constructorsChampionships: t.constructorsChampionships,
+                driversChampionships: t.driversChampionships
+            }
+        };
+
+        // Construir título de Wikipedia "Nombre_Apellido" y consultar summary en español
+        const nameParts = [d.name, d.surname].filter(Boolean) as string[];
+        let wikiTitle: string | undefined = undefined;
+        if (nameParts.length === 2) {
+            wikiTitle = `${nameParts[0]}_${nameParts[1]}`;
+            try {
+                const wikiUrl = `https://es.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(wikiTitle)}`;
+                const fetch = require('node-fetch');
+                const wikiRes = await fetch(wikiUrl, { headers: { 'accept': 'application/json' } });
+                if (wikiRes.ok) {
+                    const wikiData = await wikiRes.json();
+                    if (wikiData && typeof wikiData.extract === 'string') {
+                        filtered.description = wikiData.extract;
+                    }
+                }
+            } catch (e) {
+                console.warn('No se pudo obtener el resumen de Wikipedia:', e);
+            }
+        }
+
+        // Llamada a Google News RSS para obtener noticias del último año y añadirlas al JSON
+        try {
+            const fetch = require('node-fetch');
+            const { XMLParser } = require('fast-xml-parser');
+            const personForQuery = wikiTitle || nameParts.join('_');
+            const rssUrl = `https://news.google.com/rss/search?q=${encodeURIComponent(personForQuery)}&hl=es&gl=ES&ceid=ES:es`;
+            const rssRes = await fetch(rssUrl, { headers: { 'accept': 'application/rss+xml, application/xml;q=0.9, */*;q=0.8' } });
+            if (rssRes.ok) {
+                const rssText = await rssRes.text();
+                const parser = new XMLParser({ ignoreAttributes: false });
+                const rssJson = parser.parse(rssText);
+                const items = rssJson?.rss?.channel?.item;
+                const list: any[] = Array.isArray(items) ? items : items ? [items] : [];
+
+                // Tomar únicamente las últimas 10 noticias por fecha de publicación (más recientes primero)
+                const news = list
+                    .map((it: any) => {
+                        const title = it?.title;
+                        const link = typeof it?.link === 'string' ? it.link : undefined;
+                        const pubDateStr = it?.pubDate;
+                        const pub = pubDateStr ? new Date(pubDateStr) : undefined;
+                        return { title, link, date: pub ? pub.toISOString() : undefined, _pub: pub };
+                    })
+                    .filter((n: any) => n.title && n.link && n._pub)
+                    .sort((a: any, b: any) => (b._pub as Date).getTime() - (a._pub as Date).getTime())
+                    .slice(0, 10)
+                    .map((n: any) => ({ title: n.title, link: n.link, date: n.date }));
+
+                if (news.length > 0) {
+                    filtered.news = news;
+                } else {
+                    filtered.news = [];
+                }
+            } else {
+                filtered.news = [];
+            }
+        } catch (e) {
+            console.warn('No se pudieron obtener noticias de Google News:', e);
+            (filtered as any).news = [];
+        }
+
+        return sendOk(res, undefined, ip, { driver: filtered }, endpoint);
+    } catch (error) {
+        console.error('Error al procesar la solicitud:', error);
+        return sendServerError(res, undefined, ip, 'Error en el servidor', endpoint);
+    }
+};
 
 
