@@ -5,7 +5,6 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
 const userRoutes_1 = __importDefault(require("./routes/userRoutes"));
-const endpointRoutes_1 = __importDefault(require("./routes/endpointRoutes"));
 const renderRoutes_1 = __importDefault(require("./routes/renderRoutes"));
 const path_1 = __importDefault(require("path"));
 const cookie_parser_1 = __importDefault(require("cookie-parser"));
@@ -21,7 +20,6 @@ app.use((0, cookie_parser_1.default)());
 // Rutas
 app.use('/', renderRoutes_1.default);
 app.use('/api/users', userRoutes_1.default);
-app.use('/api/endpoints', endpointRoutes_1.default);
 // Iniciar el servidor
 app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}, http://localhost:${PORT}`);

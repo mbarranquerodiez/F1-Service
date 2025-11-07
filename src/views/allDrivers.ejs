@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="en" data-bs-theme="dark">
+ <head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="" />
+  <meta
+    name="author"
+    content="Mark Otto, Jacob Thornton, and Bootstrap contributors"
+  />
+  <meta name="generator" content="Astro v5.13.2" />
+  <title>Info1</title>
+
+  <!-- Bootstrap 5.3 desde CDN -->
+  <link
+    href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+    rel="stylesheet"
+    integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH"
+    crossorigin="anonymous"
+  />
+
+  <!-- Fuente Playfair Display -->
+  <link
+    href="https://fonts.googleapis.com/css?family=Playfair+Display:700,900&display=swap"
+    rel="stylesheet"
+  />
+
+  <!-- Tu hoja de estilos personalizada -->
+  <link href="/src/css/allRaces.css" rel="stylesheet" />
+
+  <meta name="theme-color" content="#712cf9" />
+
+  <style>
+    .bd-placeholder-img {
+      font-size: 1.125rem;
+      text-anchor: middle;
+      -webkit-user-select: none;
+      -moz-user-select: none;
+      user-select: none;
+    }
+    @media (min-width: 768px) {
+      .bd-placeholder-img-lg {
+        font-size: 3.5rem;
+      }
+    }
+    .b-example-divider {
+      width: 100%;
+      height: 3rem;
+      background-color: #0000001a;
+      border: solid rgba(0, 0, 0, 0.15);
+      border-width: 1px 0;
+      box-shadow: inset 0 0.5em 1.5em #0000001a,
+        inset 0 0.125em 0.5em #00000026;
+    }
+    .b-example-vr {
+      flex-shrink: 0;
+      width: 1.5rem;
+      height: 100vh;
+    }
+    .bi {
+      vertical-align: -0.125em;
+      fill: currentColor;
+    }
+    .nav-scroller {
+      position: relative;
+      z-index: 2;
+      height: 2.75rem;
+      overflow-y: hidden;
+    }
+    .nav-scroller .nav {
+      display: flex;
+      flex-wrap: nowrap;
+      padding-bottom: 1rem;
+      margin-top: -1px;
+      overflow-x: auto;
+      text-align: center;
+      white-space: nowrap;
+      -webkit-overflow-scrolling: touch;
+    }
+    .btn-bd-primary {
+      --bd-violet-bg: #712cf9;
+      --bd-violet-rgb: 112.520718, 44.062154, 249.437846;
+      --bs-btn-font-weight: 600;
+      --bs-btn-color: var(--bs-white);
+      --bs-btn-bg: var(--bd-violet-bg);
+      --bs-btn-border-color: var(--bd-violet-bg);
+      --bs-btn-hover-color: var(--bs-white);
+      --bs-btn-hover-bg: #6528e0;
+      --bs-btn-hover-border-color: #6528e0;
+      --bs-btn-focus-shadow-rgb: var(--bd-violet-rgb);
+      --bs-btn-active-color: var(--bs-btn-hover-color);
+      --bs-btn-active-bg: #5a23c8;
+      --bs-btn-active-border-color: #5a23c8;
+    }
+    .bd-mode-toggle {
+      z-index: 1500;
+    }
+    .bd-mode-toggle .bi {
+      width: 1em;
+      height: 1em;
+    }
+    .bd-mode-toggle .dropdown-menu .active .bi {
+      display: block !important;
+    }
+  </style>
+</head>
+
+<body>
+  <svg xmlns="http://www.w3.org/2000/svg" class="d-none">
+    <symbol
+      id="aperture"
+      fill="none"
+      stroke="currentColor"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      stroke-width="2"
+      viewBox="0 0 24 24"
+    >
+      <circle cx="12" cy="12" r="10"></circle>
+      <path
+        d="M14.31 8l5.74 9.94M9.69 8h11.48M7.38 12l5.74-9.94M9.69 16L3.95 6.06M14.31 16H2.83m13.79-4l-5.74 9.94"
+      ></path>
+    </symbol>
+    <symbol id="cart" viewBox="0 0 16 16">
+      <path
+        d="M0 1.5A.5.5 0 0 1 .5 1H2a.5.5 0 0 1 .485.379L2.89 3H14.5a.5.5 0 0 1 .49.598l-1 5a.5.5 0 0 1-.465.401l-9.397.472L4.415 11H13a.5.5 0 0 1 0 1H4a.5.5 0 0 1-.491-.408L2.01 3.607 1.61 2H.5a.5.5 0 0 1-.5-.5zM3.102 4l.84 4.479 9.144-.459L13.89 4H3.102zM5 12a2 2 0 1 0 0 4 2 2 0 0 0 0-4zm7 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4zm-7 1a1 1 0 1 1 0 2 1 1 0 0 1 0-2zm7 0a1 1 0 1 1 0 2 1 1 0 0 1 0-2z"
+      ></path>
+    </symbol>
+    <symbol id="chevron-right" viewBox="0 0 16 16">
+      <path
+        fill-rule="evenodd"
+        d="M4.646 1.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1 0 .708l-6 6a.5.5 0 0 1-.708-.708L10.293 8 4.646 2.354a.5.5 0 0 1 0-.708z"
+      ></path>
+    </symbol>
+  </svg>
+  <div class="container-fluid">
+    <header class="border-bottom lh-1 py-3">
+      <div class="row flex-nowrap justify-content-center align-items-center">
+        <div class="col-4 text-center">
+          <a
+            class="blog-header-logo text-body-emphasis text-decoration-none"
+            href="#"
+            >Info1</a
+          >
+        </div>
+      </div>
+    </header>
+    <div class="nav-scroller py-1 mb-3 border-bottom">
+      <nav class="nav nav-underline justify-content-between">
+        <a class="nav-item nav-link link-body-emphasis active" href="#">Home</a>
+        <a class="nav-item nav-link link-body-emphasis" href="/getRacesByYear">Races</a>
+        <a class="nav-item nav-link link-body-emphasis" href="/getDriversByYear">Drivers</a>
+        <a class="nav-item nav-link link-body-emphasis" href="/gallery">Gallery</a>
+      </nav>
+    </div>
+  </div>
+  <main class="container-fluid">
+    <% year = year || 2025; %>
+    <div class="p-4 p-md-5 mb-4 rounded text-body-emphasis bg-dark">
+      <div class="row justify-content-center">
+        <div class="col-lg-12 text-center">
+          <h1 class="display-4 fst-italic">Fórmula 1</h1>
+          <p class="lead my-3">Explora todas las carreras de la temporada seleccionada.</p>
+        </div>
+      </div>
+      <div class="row races-info">
+        <div class="col-md-12">
+          <!-- Year Selection -->
+          <section class="year-selection card bg-secondary text-light mb-4">
+            <div class="card-body">
+              <h2 class="card-title">Seleccionar Año</h2>
+              <select id="yearSelect" class="form-select" onchange="getDriversByYear(this.value)">
+                <% for(let y = 1975; y <= 2025; y++) { %>
+                  <option value="<%= y %>" <% if(y == year) { %>selected<% } %>><%= y %></option>
+                <% } %>
+              </select>
+            </div>
+          </section>
+
+            <section class="drivers-list card bg-secondary text-light">
+                <div class="card-body">
+                    <h2 class="card-title">Pilotos del Año <%= year %></h2>
+                    <% if (!infoAllYearDriversByYear || !infoAllYearDriversByYear.success || infoAllYearDriversByYear.drivers.length === 0) { %>
+                    <p class="error">No se encontraron datos de pilotos para este año</p>
+                    <% } else { %>
+                    <div class="list-group">
+                        <% infoAllYearDriversByYear.drivers.forEach(function(driver) { %>
+                        <a href="/driverDetails/?year=<%= year %>&driverId=<%= driver.driverId %>" data-driver-id="<%= driver.driverId %>" class="list-group-item list-group-item-action">
+                            <h5><%= driver.name %> <%= driver.surname %> (<%= driver.shortName %>)</h5>
+                            <p><strong>Número:</strong> <%= driver.number || 'No disponible' %></p>
+                            <p><strong>Nacionalidad:</strong> <%= driver.nationality || 'No disponible' %></p>
+                            <p><strong>Fecha de Nacimiento:</strong> <%= driver.birthday || 'No disponible' %></p>
+                            <p><strong>Equipo:</strong> <%= driver.teamId || 'No disponible' %></p>
+                        </a>
+                        <% }); %>
+                    </div>
+                    <% } %>
+                </div>
+            </section>
+        </div>
+        <div class="col-12 text-center mt-3">
+          <p class="lead mb-0">
+            <a href="/logout" class="text-danger fw-bold">Cerrar sesión</a>
+          </p>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    function getDriversByYear(year) {
+      // Use provided year or default to current year
+      const selectedYear = year && !isNaN(parseInt(year, 10)) ? parseInt(year, 10) : new Date().getFullYear();
+      window.location.href = `/getDriversByYear?year=${selectedYear}`;
+    }
+    </script>
+  <footer class="py-5 text-center text-body-secondary bg-body-tertiary">
+    <p>
+      Blog template built for
+      <a href="https://getbootstrap.com/">Bootstrap</a> by
+      <a href="https://x.com/mdo">@mdo</a>.
+    </p>
+    <p class="mb-0"><a href="#">Back to top</a></p>
+  </footer>
+</body>
+</html>

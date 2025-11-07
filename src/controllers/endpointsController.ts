@@ -8,13 +8,19 @@ import { verifyToken } from '../utils/tokenDecode';
 
 export class EndPoitnsController {
 
-    getWeather = async (req: Request, res: Response) => {
-        const endpoint = `${req.method} ${req.url}`;
-        const ip = req.headers['x-forwarded-for'] as string || req.socket.remoteAddress || '';
-        const { city, country, timestamp } = req.params;
+    getRaceDetails = async (city : string , country : string, timestamp : string) => {
+        
+
+        console.log("city",city);
+        console.log("country",country);
+        console.log("timestamp",timestamp);
     
         if (!city || !country || !timestamp) {
-            return sendBadParam(res, undefined, ip, 'Ciudad, país y fecha son obligatorios', endpoint);
+            const response = {
+                success: false,
+                message: "Faltan parámetros obligatorios"
+            };
+            return response;
         }
     
         try {
@@ -24,11 +30,21 @@ export class EndPoitnsController {
             const fetch = require('node-fetch');
             const nominatimRes = await fetch(nominatimUrl);
             if (!nominatimRes.ok) {
-                return sendServerError(res, undefined, ip, 'Error al consultar la API de Nominatim', endpoint);
+
+                const response = {
+                    success: false,
+                    message: "Error al consultar la API de Nominatim"
+                };
+                return response;
             }
             const nominatimData = await nominatimRes.json();
             if (!Array.isArray(nominatimData) || nominatimData.length === 0) {
-                return sendNotFound(res, undefined, ip, 'Ciudad no encontrada', endpoint);
+
+                const response = {
+                    success: false,
+                    message: "No se encontraron coordenadas para la ciudad y país proporcionados"
+                };
+                return response;
             }
             const { lat, lon, display_name } = nominatimData[0];
     
@@ -46,30 +62,53 @@ export class EndPoitnsController {
             }
             const meteoRes = await fetch(meteoUrl);
             if (!meteoRes.ok) {
-                return sendServerError(res, undefined, ip, 'Error al consultar la API de Open-Meteo', endpoint);
+                const response = {
+                    success: false,
+                    message: "Error al consultar la API de Open-Meteo"
+                };
+                return response;
             }
             const meteoData = await meteoRes.json();
             if (!meteoData.hourly || !meteoData.hourly.time) {
-                return sendNotFound(res, undefined, ip, 'No se encontraron datos meteorológicos', endpoint);
+                const response = {
+                    success: false,
+                    message: "No se encontraron datos meteorológicos"
+                };
+                return response;
             }
             // Buscar el índice de la hora exacta
             const index = meteoData.hourly.time.findIndex((t: string) => t.substring(11,16) === hour);
             if (index === -1) {
-                return sendNotFound(res, undefined, ip, 'No se encontraron datos para ese momento', endpoint);
+                const response = {
+                    success: false,
+                    message: "No se encontraron datos para ese momento"
+                };
+                return response;
             }
+            
             // Devolver solo temperatura y lluvia
             const result = {
                 temperature: meteoData.hourly.temperature_2m[index],
                 rain: meteoData.hourly.rain ? meteoData.hourly.rain[index] : undefined
             };
-            return sendOk(res, undefined, ip, result, endpoint);
+
+            const response = {
+                success: true,
+                raceDetails:result
+            };
+            return response
+
         } catch (error) {
             console.error('Error al procesar la solicitud:', error);
-            return sendServerError(res, undefined, ip, 'Error en el servidor', endpoint);
+            const response = {
+                success: false,
+                message: 'Error al procesar la solicitud'
+            };
+            return response;
         }
     };
 
-    getAllYearRaces = async (year : number) => {
+    getRacesByYear = async (year : number) => {
     
         try {
           // Validar el parámetro year
@@ -126,155 +165,92 @@ export class EndPoitnsController {
         }
     };
 
+    getAllDriverByYear = async (year : number) => {
+    
+        try { 
 
-}
-
-
-/**
- * Obtener el tiempo histórico en una ciudad y país en una fecha usando Nominatim y Open-Meteo.
- * @route GET /api/endpoints/weather/:city/:country/:timestamp
- * @group Weather
- * @param {string} city.path.required - Nombre de la ciudad
- * @param {string} country.path.required - Nombre del país
- * @param {string} timestamp.path.required - Fecha y hora en formato ISO (YYYY-MM-DDTHH:mm)
- * @returns {object} 200 - Información meteorológica
- * @returns {object} 400 - Solicitud incorrecta
- * @returns {object} 404 - Ciudad o datos meteorológicos no encontrados
- * @returns {object} 500 - Error interno del servidor
- */
-
-
-
-/**
- * Obtener todas las carreras por año.
- * @route GET /api/races/{year}
- * @group Race
- * @param {number} year.path.required - Año de las carreras a consultar
- * @returns {object} 200 - Lista de carreras para el año especificado
- * @returns {object} 401 - No autorizado, token no proporcionado o inválido
- * @returns {object} 404 - No se encontraron carreras
- * @returns {object} 500 - Error interno del servidor
- * @security Token Bearer
- */
-
-
-
-/**
- * Obtener todas las carreras por año.
- * @route GET /api/current/{year}
- * @group Race
- * @param {number} year.path.required - Año de las carreras a consultar
- * @returns {object} 200 - Lista de carreras para el año especificado
- * @returns {object} 401 - No autorizado, token no proporcionado o inválido
- * @returns {object} 404 - No se encontraron carreras
- * @returns {object} 500 - Error interno del servidor
- * @security Token Bearer
- */
-
-
-
-/**
- * Obtener los pilotos por año.
- * @route GET /api/endpoints/drivers/{year}
- * @group Driver
- * @param {number} year.path.required - Año de los pilotos a consultar
- * @returns {object} 200 - Lista de pilotos para el año especificado
- * @returns {object} 401 - No autorizado, token no proporcionado o inválido
- * @returns {object} 404 - No se encontraron pilotos
- * @returns {object} 500 - Error interno del servidor
- * @security Token Bearer
- */
-export const getYearDrivers = async (req: Request, res: Response) => {
-    const endpoint = `${req.method} ${req.url}`;
-    const ip = (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || '';
-
-    const token = req.headers['authorization']?.split(' ')[1];
-    if (!token) {
-        return sendUnauthorized(res, undefined, ip, 'Token no proporcionado', endpoint);
-    }
-
-    try {
-        const decoded = await verifyToken(token);
-        if (typeof decoded !== 'object' || decoded === null) {
-            console.error('Decodificación fallida, no es un objeto válido.');
-            return sendUnauthorized(res, undefined, ip, 'Token inválido', endpoint);
-        }
-
-        const { year } = req.params;
-        if (!year) {
-            return sendBadParam(res, undefined, ip, 'Año no proporcionado', endpoint);
-        }
-
-        const apiUrl = `https://f1api.dev/api/${year}/drivers`;
-        const fetch = require('node-fetch');
-        const response = await fetch(apiUrl);
-        if (!response.ok) {
-            return sendServerError(res, undefined, ip, 'Error al consultar la API', endpoint);
-        }
-        const data = await response.json();
-
-        let drivers: any[] | undefined = undefined;
-        if (Array.isArray(data?.drivers)) {
-            drivers = data.drivers;
-        } else if (Array.isArray(data)) {
-            drivers = data;
-        }
-
-        if (!drivers || drivers.length === 0) {
-            return sendNotFound(res, undefined, ip, 'No se encontraron pilotos para ese año', endpoint);
-        }
-
-        return sendOk(res, undefined, ip, { drivers }, endpoint);
-    } catch (error) {
-        console.error('Error al procesar la solicitud:', error);
-        return sendServerError(res, undefined, ip, 'Error en el servidor', endpoint);
-    }
-};
-
-/**
- * Obtener los datos de un piloto en un año concreto.
- * @route GET /api/drivers/{year}/{id_driver}
- * @group Driver
- * @param {number} year.path.required - Año a consultar
- * @param {string} id_driver.path.required - Identificador del piloto
- * @returns {object} 200 - Datos del piloto para ese año
- * @returns {object} 401 - No autorizado, token no proporcionado o inválido
- * @returns {object} 404 - Piloto no encontrado para ese año
- * @returns {object} 500 - Error interno del servidor
- * @security Token Bearer
- */
-export const getYearDriver = async (req: Request, res: Response) => {
-    const endpoint = `${req.method} ${req.url}`;
-    const ip = (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || '';
-
-    const token = req.headers['authorization']?.split(' ')[1];
-    if (!token) {
-        return sendUnauthorized(res, undefined, ip, 'Token no proporcionado', endpoint);
-    }
-
-    try {
-        const decoded = await verifyToken(token);
-        if (typeof decoded !== 'object' || decoded === null) {
-            console.error('Decodificación fallida, no es un objeto válido.');
-            return sendUnauthorized(res, undefined, ip, 'Token inválido', endpoint);
-        }
-
-        const { year, id_driver } = req.params;
-        if (!year || !id_driver) {
-            return sendBadParam(res, undefined, ip, 'Año e id_driver son obligatorios', endpoint);
-        }
-
-        const apiUrl = `https://f1api.dev/api/${encodeURIComponent(year)}/drivers/${encodeURIComponent(id_driver)}`;
-        const fetch = require('node-fetch');
-        const response = await fetch(apiUrl);
-        if (!response.ok) {
-            // Si la API devuelve 404, reflejamos 404; otros errores -> 500
-            if (response.status === 404) {
-                return sendNotFound(res, undefined, ip, 'Piloto no encontrado para ese año', endpoint);
+            if (!year) {
+                const response = {
+                    success: false,
+                    message: "No se proporcionó el año"
+                };
+                return response;
             }
-            return sendServerError(res, undefined, ip, 'Error al consultar la API', endpoint);
+            const apiUrl = `https://f1api.dev/api/${year}/drivers`;
+            const fetch = require('node-fetch');
+            const response = await fetch(apiUrl);
+            if (!response.ok) {
+                const response = {
+                    success: false,
+                    message: "No se encontraron datos de pilotos"
+                };
+                return response;
+            }
+            const data = await response.json();
+
+            let drivers: any[] | undefined = undefined;
+            if (Array.isArray(data?.drivers)) {
+                drivers = data.drivers;
+            } else if (Array.isArray(data)) {
+                drivers = data;
+            }
+
+            if (!drivers || drivers.length === 0) {
+                const response ={
+                    success: false,
+                    message: "No se encontraron pilotos para ese año"
+                };
+                return response;
+            }
+            const responseData = {
+                success: true,
+                drivers: drivers
+            };
+
+            return responseData;
+        } catch (error) {
+            const response ={
+                success: false,
+                message:"Error al realizar petición a la API externa"
+            }
+            return response;
+        };
+
+
+    }
+
+    getDriverDetails = async (year: number, driverId: string) => {
+        try {
+
+        if (!year || !driverId) {
+            console.error('Faltan parámetros obligatorios');
+            const response = {
+                success: false,
+                message: 'Faltan parámetros obligatorios'
+            };
+            return response;
         }
-        const data = await response.json();
+
+        const apiUrl = `https://f1api.dev/api/${encodeURIComponent(year)}/drivers/${encodeURIComponent(driverId)}`;
+        const fetch = require('node-fetch');
+        const responseApi   = await fetch(apiUrl);
+        if (!responseApi.ok) {
+            // Si la API devuelve 404, reflejamos 404; otros errores -> 500
+            if (responseApi.status === 404) {
+                const response = {
+                    success: false,
+                    message: 'Piloto no encontrado para ese año'
+                };
+                return response;
+            }
+
+            const response = {
+                    success: false,
+                    message: 'Error al Consultar la API'
+                };
+                return response;
+        }
+        const data = await responseApi.json();
 
         // La API puede devolver un objeto o un array con un solo elemento. Normalizamos.
         let raw: any = undefined;
@@ -285,8 +261,12 @@ export const getYearDriver = async (req: Request, res: Response) => {
         }
 
         if (!raw) {
-            return sendNotFound(res, undefined, ip, 'Piloto no encontrado para ese año', endpoint);
-        }
+            const response = {
+                success: false,
+                message: 'Piloto no encontrado para ese año'
+            };
+        return response;        
+    }
 
         // Extraer y filtrar solo los campos solicitados
         const d = raw.driver || {};
@@ -370,12 +350,258 @@ export const getYearDriver = async (req: Request, res: Response) => {
             console.warn('No se pudieron obtener noticias de Google News:', e);
             (filtered as any).news = [];
         }
+        const response = {
+            success: true,
+            driver: filtered
+        };
+        console.log('Response:', response.driver.news);
+        return response;
 
-        return sendOk(res, undefined, ip, { driver: filtered }, endpoint);
     } catch (error) {
         console.error('Error al procesar la solicitud:', error);
+        const response = {
+            success: false,
+            message: 'Error al procesar la solicitud'
+        };
+        return response;
+    }
+    }
+
+    getGalleryPageInfo = async (filters: any) => {
+
+        console.log("1")
+
+
+    try {
+        // Asumimos que la clave de API de Unsplash está en una variable de entorno
+        const UNSPLASH_ACCESS_KEY = process.env.UNSPLASH_ACCESS_KEY;
+        if (!UNSPLASH_ACCESS_KEY) {
+            throw new Error('Clave de API de Unsplash no configurada');
+        }
+        console.log("2")
+
+        // Parámetros base para la API
+        let query = '';
+        if (filters === null) {
+            query = 'Formula1'; // Caso especial: búsqueda solo con "Formula1"
+        } else if (filters && filters.query) {
+            query = filters.query;
+        }
+        // Puedes agregar más filtros si es necesario
+        console.log("3")
+
+        const apiUrl = `https://api.unsplash.com/search/photos?query=${encodeURIComponent(query)}&per_page=20`;
+        console.log("4")
+
+        const response = await fetch(apiUrl, {
+            method: 'GET',
+            headers: {
+                Authorization: `Client-ID ${UNSPLASH_ACCESS_KEY}`
+            }
+        });
+        console.log("5")
+
+        if (!response.ok) {
+            return {
+                success: false,
+                message: 'No se encontraron datos de la galería'
+            };
+        }
+        console.log("6")
+
+        const data = await response.json();
+        console.log("7")
+        console.log(data)
+
+        // Mapear los datos de la respuesta a una estructura simple con información asociada
+        const gallery = data.results.map((photo: any) => ({
+            id: photo.id,
+            url: photo.urls.regular, // URL de imagen mediana
+            urlFull: photo.urls.full, // URL de imagen completa
+            alt: photo.alt_description || 'Imagen sin descripción',
+            photographer: photo.user.name,
+            photographerUrl: photo.user.links.html,
+            likes: photo.likes,
+            width: photo.width,
+            height: photo.height,
+            // Puedes agregar más campos como color: photo.color, etc.
+        }));
+        console.log(gallery);
+                console.log("8")
+
+
+        return { success: true, gallery: gallery };
+
+    } catch (error) {
+        console.error('Error al obtener información de la galería:', error);
+        return { success: false, message: 'Error al obtener información de la galería' };
+    }
+    }
+    
+    getCircuits = async () => {
+
+        try {
+            db.query(
+                `SELECT 
+                    id,,
+                    name,  
+                FROM circuits
+                ORDER BY name DESC`,
+                [],
+                (err, rows: any[]) => {
+                    if (err) {
+                        console.error('Error al ejecutar la consulta:', err);
+                        return null;
+                    }
+
+                    const circuits = Array.isArray(rows) ? rows : [];
+                    return circuits;
+                }
+            );
+        } catch (error) {
+            console.error('Error al listar circuitos:', error);
+            return null;
+        }
+    }
+
+    loadCircuitDetails = async (id: number) => {
+
+    if (!id) {
+        return null;
+    }
+
+    try {
+        db.query(
+            `SELECT 
+                id, 
+                location, 
+                name, 
+                opened, 
+                first_gp, 
+                length, 
+                altitude, 
+                bbox, 
+                geom,
+                /* Si 'geom' es un tipo espacial, MySQL devolverá el GeoJSON aquí */
+                ST_AsGeoJSON(geom) AS geom_geojson
+             FROM circuits
+             WHERE id = ?
+             LIMIT 1`,
+            [id],
+            (err, rows: any[]) => {
+                if (err) {
+                    console.error('Error al ejecutar la consulta:', err);
+                    return null;
+                }
+
+                if (!rows || rows.length === 0) {
+                    return null;
+                }
+
+                const row = rows[0] as any;
+
+                // Helpers de parseo tolerante
+                const parseJsonMaybe = (val: any) => {
+                    try {
+                        if (val == null) return undefined;
+                        if (Buffer.isBuffer(val)) {
+                            const s = val.toString('utf8');
+                            return JSON.parse(s);
+                        }
+                        if (typeof val === 'string') {
+                            return JSON.parse(val);
+                        }
+                        if (typeof val === 'object') return val;
+                        return undefined;
+                    } catch {
+                        return undefined;
+                    }
+                };
+
+                // Parsear bbox y geom (admite JSON en string, Buffer o objeto)
+                let bbox = parseJsonMaybe(row.bbox);
+
+                let geometry: any = undefined;
+                // Prioridad: columna calculada ST_AsGeoJSON
+                if (row.geom_geojson) {
+                    geometry = parseJsonMaybe(row.geom_geojson);
+                }
+                // Si no hay, intentar con la columna original
+                if (!geometry) {
+                    geometry = parseJsonMaybe(row.geom);
+                }
+                // Si viene como Feature con geometry dentro
+                if (geometry && geometry.type === 'Feature' && geometry.geometry) {
+                    geometry = geometry.geometry;
+                }
+
+                // Asegurar que la geometría tiene formato GeoJSON esperado
+                if (!geometry || !geometry.type || !geometry.coordinates) {
+                    return null;
+                }
+
+                const feature = {
+                    type: 'Feature',
+                    properties: {
+                        id: row.id,
+                        Location: row.location,
+                        Name: row.name,
+                        opened: row.opened,
+                        firstgp: row.first_gp,
+                        length: row.length,
+                        altitude: row.altitude
+                    },
+                    bbox: Array.isArray(bbox) ? bbox : undefined,
+                    geometry
+                };
+
+                return feature;
+            }
+        );
+    } catch (error) {
+        console.error('Error al consultar el circuito:', error);
+        return null;
+    }
+    };
+}
+
+
+/**
+ * Listar todos los circuitos con campos seleccionados.
+ * @route GET /api/endpoints/circuits
+ * @group Circuits
+ * @returns {object} 200 - { circuits: Array<{id, location, name, opened, first_gp, length, altitude}> }
+ * @returns {object} 500 - Error interno del servidor
+ */
+export const getCircuits = async (req: Request, res: Response) => {
+    const endpoint = `${req.method} ${req.url}`;
+    const ip = (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || '';
+
+    try {
+        db.query(
+            `SELECT 
+                id,
+                location,
+                name,
+                opened,
+                first_gp,
+                length,
+                altitude
+             FROM circuits
+             ORDER BY name DESC`,
+            [],
+            (err, rows: any[]) => {
+                if (err) {
+                    console.error('Error al ejecutar la consulta:', err);
+                    return sendServerError(res, undefined, ip, 'Error al consultar la base de datos', endpoint);
+                }
+
+                const circuits = Array.isArray(rows) ? rows : [];
+                return sendOk(res, undefined, ip, { circuits }, endpoint);
+            }
+        );
+    } catch (error) {
+        console.error('Error al listar circuitos:', error);
         return sendServerError(res, undefined, ip, 'Error en el servidor', endpoint);
     }
 };
-
-
