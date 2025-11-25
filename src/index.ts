@@ -15,12 +15,13 @@ app.use(express.json());
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 app.use('/src/css', express.static(path.join(__dirname, 'css')));
+app.use('/src/public', express.static(path.join(__dirname, 'public')));
 app.use('/src/scriptsHTML', express.static(path.join(__dirname, 'scriptsHTML')));
 app.use(cookieParser());
 
 // Rutas
 app.use('/',renderRoutes)
-app.use('/api/users', userRoutes);
+app.use('/users', userRoutes);
 
 
 

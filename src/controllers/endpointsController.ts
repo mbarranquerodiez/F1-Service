@@ -96,6 +96,7 @@ export class EndPoitnsController {
                 success: true,
                 raceDetails:result
             };
+            console.log('Response:', response);
             return response
 
         } catch (error) {
@@ -438,130 +439,127 @@ export class EndPoitnsController {
     }
     }
     
-    getCircuits = async () => {
-
-        try {
-            db.query(
-                `SELECT 
-                    id,,
-                    name,  
-                FROM circuits
-                ORDER BY name DESC`,
-                [],
-                (err, rows: any[]) => {
-                    if (err) {
-                        console.error('Error al ejecutar la consulta:', err);
-                        return null;
-                    }
-
-                    const circuits = Array.isArray(rows) ? rows : [];
-                    return circuits;
-                }
-            );
-        } catch (error) {
-            console.error('Error al listar circuitos:', error);
-            return null;
+    getCircuits = async (): Promise<any[]> => {  // Añadido: Retorna Promise<any[]> para tipado
+    console.log("Entrando en getCircuits");
+    return new Promise((resolve, reject) => {  // Convertimos el callback en Promise
+      db.query(
+        `SELECT id, name FROM circuits ORDER BY name DESC`,
+        [],
+        (err: any, rows: any[]) => {
+          if (err) {
+            console.error('Error al ejecutar la consulta:', err);
+            reject(err);  // Rechazamos la Promise en caso de error
+            return;
+          }
+          const circuits = Array.isArray(rows) ? rows : [];
+          console.log("Circuitos obtenidos:", circuits);
+          resolve(circuits);  // Resolvemos con los datos
         }
-    }
+      );
+    });
+  };
 
-    loadCircuitDetails = async (id: number) => {
-
+    loadCircuitDetails = async (id: string): Promise<any | null> => {  // Tipado: string minúscula, Promise para async
+    console.log("loadCircuitDetails id:", id);
     if (!id) {
         return null;
     }
 
-    try {
+    return new Promise((resolve, reject) => {  // Envuelve el callback en Promise
         db.query(
-            `SELECT 
-                id, 
-                location, 
-                name, 
-                opened, 
-                first_gp, 
-                length, 
-                altitude, 
-                bbox, 
-                geom,
-                /* Si 'geom' es un tipo espacial, MySQL devolverá el GeoJSON aquí */
-                ST_AsGeoJSON(geom) AS geom_geojson
-             FROM circuits
-             WHERE id = ?
-             LIMIT 1`,
-            [id],
-            (err, rows: any[]) => {
-                if (err) {
-                    console.error('Error al ejecutar la consulta:', err);
-                    return null;
-                }
-
-                if (!rows || rows.length === 0) {
-                    return null;
-                }
-
-                const row = rows[0] as any;
-
-                // Helpers de parseo tolerante
-                const parseJsonMaybe = (val: any) => {
-                    try {
-                        if (val == null) return undefined;
-                        if (Buffer.isBuffer(val)) {
-                            const s = val.toString('utf8');
-                            return JSON.parse(s);
-                        }
-                        if (typeof val === 'string') {
-                            return JSON.parse(val);
-                        }
-                        if (typeof val === 'object') return val;
-                        return undefined;
-                    } catch {
-                        return undefined;
-                    }
-                };
-
-                // Parsear bbox y geom (admite JSON en string, Buffer o objeto)
-                let bbox = parseJsonMaybe(row.bbox);
-
-                let geometry: any = undefined;
-                // Prioridad: columna calculada ST_AsGeoJSON
-                if (row.geom_geojson) {
-                    geometry = parseJsonMaybe(row.geom_geojson);
-                }
-                // Si no hay, intentar con la columna original
-                if (!geometry) {
-                    geometry = parseJsonMaybe(row.geom);
-                }
-                // Si viene como Feature con geometry dentro
-                if (geometry && geometry.type === 'Feature' && geometry.geometry) {
-                    geometry = geometry.geometry;
-                }
-
-                // Asegurar que la geometría tiene formato GeoJSON esperado
-                if (!geometry || !geometry.type || !geometry.coordinates) {
-                    return null;
-                }
-
-                const feature = {
-                    type: 'Feature',
-                    properties: {
-                        id: row.id,
-                        Location: row.location,
-                        Name: row.name,
-                        opened: row.opened,
-                        firstgp: row.first_gp,
-                        length: row.length,
-                        altitude: row.altitude
-                    },
-                    bbox: Array.isArray(bbox) ? bbox : undefined,
-                    geometry
-                };
-
-                return feature;
+        `SELECT
+            id,
+            location,
+            name,
+            opened,
+            first_gp,
+            length,
+            altitude,
+            bbox,
+            geom,
+            /* Si 'geom' es un tipo espacial, MySQL devolverá el GeoJSON aquí */
+            ST_AsGeoJSON(geom) AS geom_geojson
+        FROM circuits
+        WHERE id = ?
+        LIMIT 1`,
+        [id],
+        (err: any, rows: any[]) => {
+            if (err) {
+            console.error('Error al ejecutar la consulta:', err);
+            reject(err);  // Rechaza la Promise para propagar error al await
+            return;
             }
+
+            if (!rows || rows.length === 0) {
+            resolve(null);  // Resuelve null si no hay rows
+            return;
+            }
+
+            const row = rows[0] as any;
+
+            // Helpers de parseo tolerante (igual)
+            const parseJsonMaybe = (val: any) => {
+            try {
+                if (val == null) return undefined;
+                if (Buffer.isBuffer(val)) {
+                const s = val.toString('utf8');
+                return JSON.parse(s);
+                }
+                if (typeof val === 'string') {
+                return JSON.parse(val);
+                }
+                if (typeof val === 'object') return val;
+                return undefined;
+            } catch {
+                return undefined;
+            }
+            };
+
+            // Parsear bbox y geom (igual)
+            let bbox = parseJsonMaybe(row.bbox);
+            let geometry: any = undefined;
+
+            // Prioridad: columna calculada ST_AsGeoJSON
+            if (row.geom_geojson) {
+            geometry = parseJsonMaybe(row.geom_geojson);
+            }
+
+            // Si no hay, intentar con la columna original
+            if (!geometry) {
+            geometry = parseJsonMaybe(row.geom);
+            }
+
+            // Si viene como Feature con geometry dentro
+            if (geometry && geometry.type === 'Feature' && geometry.geometry) {
+            geometry = geometry.geometry;
+            }
+
+            // Asegurar que la geometría tiene formato GeoJSON esperado
+            if (!geometry || !geometry.type || !geometry.coordinates) {
+            resolve(null);  // Resuelve null si geometry inválida
+            return;
+            }
+
+            const feature = {
+            type: 'Feature',
+            properties: {
+                id: row.id,
+                Location: row.location,
+                Name: row.name,
+                opened: row.opened,
+                firstgp: row.first_gp,
+                length: row.length,
+                altitude: row.altitude
+            },
+            bbox: Array.isArray(bbox) ? bbox : undefined,
+            geometry
+            };
+
+            console.log("Circuit feature:", feature);
+            resolve(feature);  // Resuelve con el feature
+        }
         );
-    } catch (error) {
-        console.error('Error al consultar el circuito:', error);
-        return null;
-    }
+    });
     };
 }
 

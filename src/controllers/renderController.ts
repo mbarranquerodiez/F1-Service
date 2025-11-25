@@ -21,6 +21,28 @@ export class RenderController{
             return sendServerError(res, undefined, ip, 'Error en el servidor', endpoint);
         }
     }; 
+    renderCreateAccount = async (req: Request, res: Response) => {
+        const endpoint = `${req.method} ${req.url}`;
+        const ip = req.headers['x-forwarded-for'] as string || req.socket.remoteAddress || '';
+    
+        try {
+            res.render('createAccount');
+        } catch (error) {
+            console.error('Error al renderizar la página de createAccount:', error);
+            return sendServerError(res, undefined, ip, 'Error en el servidor', endpoint);
+        }
+    }; 
+    renderChangePassword = async (req: Request, res: Response) => {
+        const endpoint = `${req.method} ${req.url}`;
+        const ip = req.headers['x-forwarded-for'] as string || req.socket.remoteAddress || '';
+    
+        try {
+            res.render('changePassword');
+        } catch (error) {
+            console.error('Error al renderizar la página de changePassword:', error);
+            return sendServerError(res, undefined, ip, 'Error en el servidor', endpoint);
+        }
+    };
     renderHome = async (req: Request, res: Response) => {
     
         const endpoint = `${req.method} ${req.url}`;
@@ -124,6 +146,7 @@ export class RenderController{
             }
 
             const infoRaceDetails = await endpointsController.getRaceDetails(city, country, timestamp);
+            console.log("infoRaceDetails en renderRaceDetails:", infoRaceDetails);
 
             if(infoRaceDetails.success === true){
                 res.render('raceDetails', {infoRaceDetails});
@@ -272,6 +295,7 @@ export class RenderController{
                 return sendUnauthorized(res, undefined, ip, 'Token inválido', endpoint);
             }
             const circuitsInfo = await endpointsController.getCircuits();
+            console.log("circuitsInfo", circuitsInfo);
 
             res.render('circuits', { circuitsInfo });
         } catch (error) {
@@ -279,7 +303,6 @@ export class RenderController{
             return sendServerError(res, undefined, ip, 'Error en el servidor', endpoint);
         }
     };
-
     loadCircuitDetails = async (req: Request, res: Response) => {
 
         const endpoint = `${req.method} ${req.url}`;
@@ -298,20 +321,21 @@ export class RenderController{
                 console.error('Decodificación fallida, no es un objeto válido.');
                 return sendUnauthorized(res, undefined, ip, 'Token inválido', endpoint);
             }
+            console.log("req.params.id:", req.query.id);  // Log más específico
 
-            const idString  = req.params.id as string | undefined;
-            const id = idString && !isNaN(parseInt(idString, 10)) ? parseInt(idString, 10) : undefined;
-       
-
+            const id = req.query.id as string;  // Trata como string directamente
 
             if (!id) {
                 return sendBadParam(res, undefined, ip, 'El id del circuito es obligatorio', endpoint);
             }
-            const circuitInfo = await endpointsController.loadCircuitDetails(id);
-            return circuitInfo;
+            const circuit = await endpointsController.loadCircuitDetails(id);
+            console.log("circuit details:", circuit);
+            res.render('circuitDetails', { circuit });
         } catch (error) {
             console.error('Error al cargar información del circuito:', error);
             throw error;
         }
     };
+
+
     };

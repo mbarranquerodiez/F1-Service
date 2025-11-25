@@ -3,7 +3,7 @@ import { addUser, changePassword, loginUser } from '../controllers/userControlle
 
 const router = Router();
 
-router.post('/add', addUser);
+router.post('/addUser', addUser);
 router.post('/login', loginUser);
 router.patch('/changepassword', changePassword);
 

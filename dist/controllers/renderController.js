@@ -28,6 +28,28 @@ class RenderController {
                 return (0, messages_1.sendServerError)(res, undefined, ip, 'Error en el servidor', endpoint);
             }
         });
+        this.renderCreateAccount = (req, res) => __awaiter(this, void 0, void 0, function* () {
+            const endpoint = `${req.method} ${req.url}`;
+            const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || '';
+            try {
+                res.render('createAccount');
+            }
+            catch (error) {
+                console.error('Error al renderizar la página de createAccount:', error);
+                return (0, messages_1.sendServerError)(res, undefined, ip, 'Error en el servidor', endpoint);
+            }
+        });
+        this.renderChangePassword = (req, res) => __awaiter(this, void 0, void 0, function* () {
+            const endpoint = `${req.method} ${req.url}`;
+            const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || '';
+            try {
+                res.render('changePassword');
+            }
+            catch (error) {
+                console.error('Error al renderizar la página de changePassword:', error);
+                return (0, messages_1.sendServerError)(res, undefined, ip, 'Error en el servidor', endpoint);
+            }
+        });
         this.renderHome = (req, res) => __awaiter(this, void 0, void 0, function* () {
             const endpoint = `${req.method} ${req.url}`;
             const token = req.cookies.access_token;
@@ -100,6 +122,7 @@ class RenderController {
                     return (0, messages_1.sendUnauthorized)(res, undefined, ip, 'Token inválido', endpoint);
                 }
                 const infoRaceDetails = yield endpointsController.getRaceDetails(city, country, timestamp);
+                console.log("infoRaceDetails en renderRaceDetails:", infoRaceDetails);
                 if (infoRaceDetails.success === true) {
                     res.render('raceDetails', { infoRaceDetails });
                 }
@@ -208,6 +231,7 @@ class RenderController {
                     return (0, messages_1.sendUnauthorized)(res, undefined, ip, 'Token inválido', endpoint);
                 }
                 const circuitsInfo = yield endpointsController.getCircuits();
+                console.log("circuitsInfo", circuitsInfo);
                 res.render('circuits', { circuitsInfo });
             }
             catch (error) {
@@ -228,13 +252,14 @@ class RenderController {
                     console.error('Decodificación fallida, no es un objeto válido.');
                     return (0, messages_1.sendUnauthorized)(res, undefined, ip, 'Token inválido', endpoint);
                 }
-                const idString = req.params.id;
-                const id = idString && !isNaN(parseInt(idString, 10)) ? parseInt(idString, 10) : undefined;
+                console.log("req.params.id:", req.query.id); // Log más específico
+                const id = req.query.id; // Trata como string directamente
                 if (!id) {
                     return (0, messages_1.sendBadParam)(res, undefined, ip, 'El id del circuito es obligatorio', endpoint);
                 }
-                const circuitInfo = yield endpointsController.loadCircuitDetails(id);
-                return circuitInfo;
+                const circuit = yield endpointsController.loadCircuitDetails(id);
+                console.log("circuit details:", circuit);
+                res.render('circuitDetails', { circuit });
             }
             catch (error) {
                 console.error('Error al cargar información del circuito:', error);

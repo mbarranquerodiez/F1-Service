@@ -133,27 +133,26 @@
       ></path>
     </symbol>
   </svg>
-  <div class="container-fluid">
-    <header class="border-bottom lh-1 py-3">
-      <div class="row flex-nowrap justify-content-center align-items-center">
-        <div class="col-4 text-center">
-          <a
-            class="blog-header-logo text-body-emphasis text-decoration-none"
-            href="#"
-            >Info1</a
-          >
-        </div>
-      </div>
-    </header>
-    <div class="nav-scroller py-1 mb-3 border-bottom">
-      <nav class="nav nav-underline justify-content-between">
-        <a class="nav-item nav-link link-body-emphasis active" href="#">Home</a>
-        <a class="nav-item nav-link link-body-emphasis" href="/getRacesByYear">Races</a>
-        <a class="nav-item nav-link link-body-emphasis" href="/getDriversByYear">Drivers</a>
-        <a class="nav-item nav-link link-body-emphasis" href="/gallery">Gallery</a>
-      </nav>
+   <div class="container-fluid">
+<header class="border-bottom lh-1 py-3">
+  <div class="row flex-nowrap justify-content-center align-items-center">
+    <div class="col-4 text-center">
+      <a class="blog-header-logo text-decoration-none" href="/home">
+        <img src="/src/public/LogoInfo1.png" alt="Info1" style="max-height: 100px; width: auto;"> <!-- Ajusta el tamaño con style si es necesario -->
+      </a>
     </div>
   </div>
+</header>
+<div class="nav-scroller py-1 mb-3 border-bottom">
+<nav class="nav nav-underline justify-content-between">
+<a class="nav-item nav-link link-body-emphasis" href="/home">Home</a>
+<a class="nav-item nav-link link-body-emphasis active" href="/getRacesByYear">Carreras</a>
+<a class="nav-item nav-link link-body-emphasis " href="/getDriversByYear">Pilotos</a>
+<a class="nav-item nav-link link-body-emphasis" href="/circuits">Circuitos</a>
+<a class="nav-item nav-link link-body-emphasis" href="/gallery">Galería</a>
+</nav>
+</div>
+</div>
   <main class="container-fluid">
     <% year = year || 2025; %>
     <div class="p-4 p-md-5 mb-4 rounded text-body-emphasis bg-dark">

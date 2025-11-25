@@ -97,6 +97,7 @@ class EndPoitnsController {
                     success: true,
                     raceDetails: result
                 };
+                console.log('Response:', response);
                 return response;
             }
             catch (error) {
@@ -406,54 +407,52 @@ class EndPoitnsController {
             }
         });
         this.getCircuits = () => __awaiter(this, void 0, void 0, function* () {
-            try {
-                db_1.default.query(`SELECT 
-                    id,,
-                    name,  
-                FROM circuits
-                ORDER BY name DESC`, [], (err, rows) => {
+            console.log("Entrando en getCircuits");
+            return new Promise((resolve, reject) => {
+                db_1.default.query(`SELECT id, name FROM circuits ORDER BY name DESC`, [], (err, rows) => {
                     if (err) {
                         console.error('Error al ejecutar la consulta:', err);
-                        return null;
+                        reject(err); // Rechazamos la Promise en caso de error
+                        return;
                     }
                     const circuits = Array.isArray(rows) ? rows : [];
-                    return circuits;
+                    console.log("Circuitos obtenidos:", circuits);
+                    resolve(circuits); // Resolvemos con los datos
                 });
-            }
-            catch (error) {
-                console.error('Error al listar circuitos:', error);
-                return null;
-            }
+            });
         });
         this.loadCircuitDetails = (id) => __awaiter(this, void 0, void 0, function* () {
+            console.log("loadCircuitDetails id:", id);
             if (!id) {
                 return null;
             }
-            try {
-                db_1.default.query(`SELECT 
-                id, 
-                location, 
-                name, 
-                opened, 
-                first_gp, 
-                length, 
-                altitude, 
-                bbox, 
-                geom,
-                /* Si 'geom' es un tipo espacial, MySQL devolverá el GeoJSON aquí */
-                ST_AsGeoJSON(geom) AS geom_geojson
-             FROM circuits
-             WHERE id = ?
-             LIMIT 1`, [id], (err, rows) => {
+            return new Promise((resolve, reject) => {
+                db_1.default.query(`SELECT
+            id,
+            location,
+            name,
+            opened,
+            first_gp,
+            length,
+            altitude,
+            bbox,
+            geom,
+            /* Si 'geom' es un tipo espacial, MySQL devolverá el GeoJSON aquí */
+            ST_AsGeoJSON(geom) AS geom_geojson
+        FROM circuits
+        WHERE id = ?
+        LIMIT 1`, [id], (err, rows) => {
                     if (err) {
                         console.error('Error al ejecutar la consulta:', err);
-                        return null;
+                        reject(err); // Rechaza la Promise para propagar error al await
+                        return;
                     }
                     if (!rows || rows.length === 0) {
-                        return null;
+                        resolve(null); // Resuelve null si no hay rows
+                        return;
                     }
                     const row = rows[0];
-                    // Helpers de parseo tolerante
+                    // Helpers de parseo tolerante (igual)
                     const parseJsonMaybe = (val) => {
                         try {
                             if (val == null)
@@ -473,7 +472,7 @@ class EndPoitnsController {
                             return undefined;
                         }
                     };
-                    // Parsear bbox y geom (admite JSON en string, Buffer o objeto)
+                    // Parsear bbox y geom (igual)
                     let bbox = parseJsonMaybe(row.bbox);
                     let geometry = undefined;
                     // Prioridad: columna calculada ST_AsGeoJSON
@@ -490,7 +489,8 @@ class EndPoitnsController {
                     }
                     // Asegurar que la geometría tiene formato GeoJSON esperado
                     if (!geometry || !geometry.type || !geometry.coordinates) {
-                        return null;
+                        resolve(null); // Resuelve null si geometry inválida
+                        return;
                     }
                     const feature = {
                         type: 'Feature',
@@ -506,13 +506,10 @@ class EndPoitnsController {
                         bbox: Array.isArray(bbox) ? bbox : undefined,
                         geometry
                     };
-                    return feature;
+                    console.log("Circuit feature:", feature);
+                    resolve(feature); // Resuelve con el feature
                 });
-            }
-            catch (error) {
-                console.error('Error al consultar el circuito:', error);
-                return null;
-            }
+            });
         });
     }
 }

@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>INFO1 - Create Account</title>
+<link rel="stylesheet" href="/src/css/createAccount.css">
+</head>
+<body>
+<div class="login-container">
+<div class="login-card">
+<div class="login-header">
+<img src="/src/public/LogoInfo1.png" alt="Info1" style="max-height: 80px; width: auto;"> <!-- Ajusta el tamaño con style si es necesario -->
+<p>Create your account to access Formula 1 insights</p>
+</div>
+<form class="login-form" id="createAccountForm" novalidate>
+<div class="form-group">
+<div class="input-wrapper">
+<input type="text" id="username" name="username" required autocomplete="username" placeholder=" ">
+<label for="username">Username</label>
+</div>
+<span class="error-message" id="usernameError"></span>
+</div>
+<div class="form-group">
+<div class="input-wrapper">
+<input type="email" id="email" name="email" required autocomplete="email" placeholder=" ">
+<label for="email">Email</label>
+</div>
+<span class="error-message" id="emailError"></span>
+</div>
+<div class="form-group">
+<div class="input-wrapper password-wrapper">
+<input type="password" id="password" name="password" required autocomplete="new-password" placeholder=" ">
+<label for="password">Password</label>
+<button type="button" class="password-toggle" id="passwordToggle" aria-label="Toggle password visibility">
+<span class="eye-icon"></span>
+</button>
+</div>
+<span class="error-message" id="passwordError"></span>
+</div>
+<div class="form-group">
+<div class="input-wrapper password-wrapper">
+<input type="password" id="confirmPassword" name="confirmPassword" required autocomplete="new-password" placeholder=" ">
+<label for="confirmPassword">Confirm Password</label>
+<button type="button" class="password-toggle" id="confirmPasswordToggle" aria-label="Toggle password visibility">
+<span class="eye-icon"></span>
+</button>
+</div>
+<span class="error-message" id="confirmPasswordError"></span>
+</div>
+<div class="form-options">
+<label class="remember-wrapper">
+<input type="checkbox" id="remember" name="remember">
+<span class="checkbox-label">
+<span class="checkmark"></span>
+Remember me
+</span>
+</label>
+</div>
+<button type="submit" class="login-btn">
+<span class="btn-text">Create Account</span>
+<span class="btn-loader"></span>
+</button>
+</form>
+<div class="signup-link">
+<p>Already have an account? <a href="/">Sign In</a></p>
+</div>
+<div class="success-message" id="successMessage">
+<div class="success-icon">✓</div>
+<h3>Account Created Successfully!</h3>
+<p>Redirecting to login...</p>
+</div>
+</div>
+</div>
+<script>
+// createAccount.js
+document.addEventListener('DOMContentLoaded', function() {
+  const form = document.getElementById('createAccountForm');
+  const usernameInput = document.getElementById('username');
+  const emailInput = document.getElementById('email');
+  const passwordInput = document.getElementById('password');
+  const confirmPasswordInput = document.getElementById('confirmPassword');
+  const usernameError = document.getElementById('usernameError');
+  const emailError = document.getElementById('emailError');
+  const passwordError = document.getElementById('passwordError');
+  const confirmPasswordError = document.getElementById('confirmPasswordError');
+  const successMessage = document.getElementById('successMessage');
+  const submitBtn = form.querySelector('.login-btn');
+  const btnText = submitBtn.querySelector('.btn-text');
+  const btnLoader = submitBtn.querySelector('.btn-loader');
+
+  // Toggle password visibility
+  const togglePassword = (inputId, toggleId) => {
+    const input = document.getElementById(inputId);
+    const toggle = document.getElementById(toggleId);
+    const eyeIcon = toggle.querySelector('.eye-icon');
+    if (toggle) {
+      toggle.addEventListener('click', () => {
+        const type = input.getAttribute('type') === 'password' ? 'text' : 'password';
+        input.setAttribute('type', type);
+        if (eyeIcon) {
+          eyeIcon.classList.toggle('active', type === 'text');
+        }
+      });
+    }
+  };
+  togglePassword('password', 'passwordToggle');
+  togglePassword('confirmPassword', 'confirmPasswordToggle');
+
+  // Validación client-side
+  const validateForm = () => {
+    let isValid = true;
+    clearErrors();
+
+    const username = usernameInput.value.trim();
+    if (!username) {
+      showError(usernameError, 'Username is required');
+      isValid = false;
+    } else if (username.length < 3) {
+      showError(usernameError, 'Username must be at least 3 characters');
+      isValid = false;
+    }
+
+    const email = emailInput.value.trim();
+    if (!email) {
+      showError(emailError, 'Email is required');
+      isValid = false;
+    } else if (!isValidEmail(email)) {
+      showError(emailError, 'Invalid email format');
+      isValid = false;
+    }
+
+    const password = passwordInput.value;
+    if (!password) {
+      showError(passwordError, 'Password is required');
+      isValid = false;
+    } else if (password.length < 6) {
+      showError(passwordError, 'Password must be at least 6 characters');
+      isValid = false;
+    }
+
+    const confirmPassword = confirmPasswordInput.value;
+    if (confirmPassword !== password) {
+      showError(confirmPasswordError, 'Passwords do not match');
+      isValid = false;
+    }
+
+    return isValid;
+  };
+
+  const isValidEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+
+  const showError = (element, message) => {
+    element.textContent = message;
+    element.classList.add('visible');
+  };
+
+  const clearErrors = () => {
+    [usernameError, emailError, passwordError, confirmPasswordError].forEach(el => {
+      el.textContent = '';
+      el.classList.remove('visible');
+    });
+  };
+
+  const showSuccess = () => {
+    form.style.display = 'none';
+    successMessage.innerHTML = '<div class="success-icon">✓</div><h3>Usuario creado con éxito!</h3><p>Redirigiendo al login...</p>';
+    successMessage.style.display = 'block';
+    setTimeout(() => {
+      window.location.href = '/';
+    }, 2000);
+  };
+
+  // Submit handler
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (!validateForm()) return;
+
+    // Mostrar loader
+    submitBtn.classList.add('loading');
+    btnText.style.opacity = '0';
+    btnLoader.style.opacity = '1';
+
+    try {
+      const data = {
+        username: usernameInput.value.trim(),
+        email: emailInput.value.trim(),
+        password: passwordInput.value
+      };
+
+      const response = await fetch('/users/addUser', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+
+      const result = await response.json();
+
+      if (response.ok) {  // 200: Éxito
+        showSuccess();
+      } else if (response.status === 409) {  // Conflicto: Usuario o email ya existe
+        const errorMsg = result.message || 'Conflicto al crear usuario';
+        clearErrors();  // Limpia errores previos antes de mostrar el nuevo
+        if (errorMsg.includes('usuario')) {
+          showError(usernameError, errorMsg);
+        } else if (errorMsg.includes('email')) {
+          showError(emailError, errorMsg);
+        } else {
+          // Fallback: Muestra en un campo genérico o global
+          showError(usernameError, errorMsg);
+        }
+      } else {
+        // Otros errores (ej. 400, 500)
+        const errorMsg = result.message || 'Error al crear usuario';
+        showError(usernameError, errorMsg);
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      showError(usernameError, 'Error de red. Intenta de nuevo.');
+    } finally {
+      // Ocultar loader
+      submitBtn.classList.remove('loading');
+      btnText.style.opacity = '1';
+      btnLoader.style.opacity = '0';
+    }
+  });
+});
+
+</script>
+</body>
+</html>

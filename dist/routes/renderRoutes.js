@@ -5,6 +5,8 @@ const renderController_1 = require("../controllers/renderController");
 const router = (0, express_1.Router)();
 const renderController = new renderController_1.RenderController;
 router.get('/', renderController.renderLogin);
+router.get('/createAccount', renderController.renderCreateAccount);
+router.get('/changePassword', renderController.renderChangePassword);
 router.get('/home', renderController.renderHome);
 router.get('/getRacesByYear', renderController.renderAllRacesByYear);
 router.get('/getDriversByYear', renderController.renderAllDriversByYear);
