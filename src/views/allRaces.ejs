@@ -169,7 +169,7 @@
             <div class="card-body">
               <h2 class="card-title">Seleccionar Año</h2>
               <select id="yearSelect" class="form-select" onchange="getRacesByYear(this.value)">
-                <% for(let y = 1975; y <= 2025; y++) { %>
+                <% for(let y = 1975; y <= new Date().getFullYear(); y++) { %>
                   <option value="<%= y %>" <% if(y == year) { %>selected<% } %>><%= y %></option>
                 <% } %>
               </select>
@@ -185,7 +185,7 @@
               <% } else { %>
                 <div class="list-group">
                   <% infoAllYearRaces.forEach(function(race) { %>
-                    <a href="/raceDetails?city=<%=race.circuit?.city%>&country=<%=race.circuit?.country%>&timestamp=<%= race.schedule?.race?.date || '' %> <%= race.schedule?.race?.time || '' %>" class="list-group-item list-group-item-action">
+                    <a href="/raceDetails?year=<%= year %>&round=<%= race.round || '' %>&city=<%=race.circuit?.city%>&country=<%=race.circuit?.country%>&timestamp=<%= race.schedule?.race?.date || '' %> <%= race.schedule?.race?.time || '' %>" class="list-group-item list-group-item-action">
                       <h5><%= race.raceName || 'No disponible' %></h5>
                       <p><strong>Ronda:</strong> <%= race.round || 'No disponible' %></p>
                       <p><strong>Fecha:</strong> <%= race.schedule?.race?.date || 'No disponible' %> <%= race.schedule?.race?.time || '' %></p>

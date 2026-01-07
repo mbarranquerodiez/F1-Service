@@ -65,8 +65,7 @@ export class RenderController{
                 return sendUnauthorized(res, undefined, ip, 'Token inválido', endpoint);
             }
             const infoHomeRacesInfo = await endpointsController.getRacesInfo();
-            console.log(infoHomeRacesInfo.lastRace.race[0].raceName)
-    
+
             // Renderizar la plantilla EJS sin datos dinámicos por ahora
             res.render('home', {infoHomeRacesInfo});
         } catch (error) {
@@ -101,16 +100,18 @@ export class RenderController{
         try {
             
             const decoded = await verifyToken(token);
-    
+
             if (typeof decoded !== 'object' || decoded === null) {
                 console.error('Decodificación fallida, no es un objeto válido.');
                 return sendUnauthorized(res, undefined, ip, 'Token inválido', endpoint);
             }
-    
-    
-            const infoAllYearRaces = await endpointsController.getRacesByYear(year);
 
-            res.render('allRaces', {year, infoAllYearRaces});
+
+            const result = await endpointsController.getRacesByYear(year);
+            const infoAllYearRaces = result.races;
+            const actualYear = result.actualYear; // Año real usado si hubo fallback
+
+            res.render('allRaces', {year: actualYear, infoAllYearRaces});
     
         } catch (error) {
             console.error('Error al procesar la solicitud:', error);
@@ -123,9 +124,11 @@ export class RenderController{
         const token = req.cookies.access_token
         const ip = req.headers['x-forwarded-for'] as string || req.socket.remoteAddress || '';
 
-        const city = req.query.city as string ;
-        const country = req.query.country as string ;
+        const city = req.query.city as string;
+        const country = req.query.country as string;
         const timestamp = req.query.timestamp as string;
+        const yearStr = req.query.year as string;
+        const roundStr = req.query.round as string;
 
         if (!city || !country || !timestamp) {
             return res.status(400).json({ error: 'Faltan parámetros obligatorios' });
@@ -146,17 +149,41 @@ export class RenderController{
             }
 
             const infoRaceDetails = await endpointsController.getRaceDetails(city, country, timestamp);
-            console.log("infoRaceDetails en renderRaceDetails:", infoRaceDetails);
 
             if(infoRaceDetails.success === true){
-                res.render('raceDetails', {infoRaceDetails});
+                let infoRaceResults = null;
+                
+                // Obtener resultados solo si tenemos year y round
+                if (yearStr && roundStr) {
+                    const year = parseInt(yearStr);
+                    const round = parseInt(roundStr);
+                    
+                    if (!isNaN(year) && !isNaN(round)) {
+                        infoRaceResults = await endpointsController.getRaceResults(year, round);
+                    }
+                }
+                
+                res.render('raceDetails', { 
+                    infoRaceDetails,
+                    infoRaceResults: infoRaceResults && infoRaceResults.success ? infoRaceResults : null
+                });
             }else{
-                res.render("errorPage", {infoRaceDetails});
+                res.render("errorPage", { 
+                    error: {
+                        message: (infoRaceDetails as any).message || 'Error al obtener detalles de la carrera',
+                        details: 'No se pudieron obtener los datos meteorológicos para esta carrera'
+                    }
+                });
             }
 
         } catch (error) {
             console.error('Error al procesar la solicitud:', error);
-            return sendServerError(res, undefined, ip, 'Error en el servidor', endpoint);
+            return res.render("errorPage", { 
+                error: {
+                    message: 'Error del servidor',
+                    details: 'Ocurrió un error al procesar la solicitud de detalles de la carrera'
+                }
+            });
         }
 
     };
@@ -166,7 +193,6 @@ export class RenderController{
         const endpoint = `${req.method} ${req.url}`;
         const token = req.cookies.access_token
         const ip = req.headers['x-forwarded-for'] as string || req.socket.remoteAddress || '';
-        console.log(req.query.year)
     
     
         const yearString = req.query.year as string | undefined;
@@ -195,10 +221,14 @@ export class RenderController{
     
             const infoAllYearDriversByYear =  await endpointsController.getAllDriverByYear(year);
             if(infoAllYearDriversByYear.success === true){
-                console.log("Entra en succes true",infoAllYearDriversByYear);
-                res.render('allDrivers', {year, infoAllYearDriversByYear});
+                const actualYear = infoAllYearDriversByYear.actualYear || year;
+                res.render('allDrivers', {year: actualYear, infoAllYearDriversByYear});
             }else{
-                res.render("errorPage", {infoAllYearDriversByYear});
+                res.render("errorPage", {
+                    errorCode: 404,
+                    errorMessage: 'message' in infoAllYearDriversByYear ? infoAllYearDriversByYear.message : "No se encontraron datos",
+                    errorDetails: `No se pudieron cargar los pilotos para el año ${year}`
+                });
             }
     
         } catch (error) {
@@ -207,31 +237,49 @@ export class RenderController{
         }
     }
     renderDriverDetails = async (req: Request, res: Response) => {
-
-    
         const endpoint = `${req.method} ${req.url}`;
         const token = req.cookies.access_token
         const ip = req.headers['x-forwarded-for'] as string || req.socket.remoteAddress || '';
-        console.log(req.query.year, req.query.driverId)
-    
-    
+        
         const yearString = req.query.year as string | undefined;
         const driverId = req.query.driverId as string | undefined;
         const year = yearString && !isNaN(parseInt(yearString, 10)) ? parseInt(yearString, 10) : new Date().getFullYear();
     
-      // Validate year
-      if (isNaN(year) || year < 1900 || year > 2100 || !driverId) {
-        return res.status(400).json({ error: 'Invalid year or driverId' });
-      }
+        // Validar parámetros
+        if (isNaN(year) || year < 1900 || year > 2100 || !driverId) {
+            return res.status(400).json({ error: 'Invalid year or driverId' });
+        }
 
-      const infoDriverDetails = await endpointsController.getDriverDetails(year, driverId);
+        // Validar token
+        if (!token) {
+            return sendUnauthorized(res, undefined, ip, 'Token no proporcionado', endpoint);
+        }
 
-      if(infoDriverDetails.success === true){
-          res.render('driverDetails', {year, infoDriverDetails});
-      }else{
-          res.render("errorPage", {infoDriverDetails});
-      }
+        try {
+            const decoded = await verifyToken(token);
 
+            if (typeof decoded !== 'object' || decoded === null) {
+                console.error('Decodificación fallida, no es un objeto válido.');
+                return sendUnauthorized(res, undefined, ip, 'Token inválido', endpoint);
+            }
+
+            const infoDriverDetails = await endpointsController.getDriverDetails(year, driverId);
+
+            if(infoDriverDetails.success === true){
+                res.render('driverDetails', {year, infoDriverDetails});
+            }else{
+                res.render("errorPage", {
+                    error: {
+                        message: (infoDriverDetails as any).message || 'Error al obtener detalles del piloto',
+                        details: 'No se pudieron obtener los datos del piloto'
+                    }
+                });
+            }
+
+        } catch (error) {
+            console.error('Error al procesar la solicitud:', error);
+            return sendServerError(res, undefined, ip, 'Error en el servidor', endpoint);
+        }
     }
     renderGallery = async (req: Request, res: Response) => {
 
@@ -250,12 +298,10 @@ export class RenderController{
 
             // Solución sencilla: declara filters con tipo union para permitir null
             let filters: any | null = req.query;
-            console.log("Filtros recibidos en renderGallery:", filters);
 
         // Si no hay nada en la query (objeto vacío), setear a null
              if (Object.keys(filters as any).length === 0) {
                 filters = null;
-                console.log("No hay filtros en la query, se setea a null", filters);
              }
 
             const decoded = await verifyToken(token);
@@ -265,8 +311,17 @@ export class RenderController{
             }
             const inforGalleryPage = await endpointsController.getGalleryPageInfo(filters);
 
+            // Pasar los filtros actuales a la vista para mantenerlos seleccionados
+            const selectedYear = filters && filters.year ? filters.year : '2025';
+            const selectedTeam = filters && filters.team ? filters.team : '';
+            const selectedRace = filters && filters.race ? filters.race : '';
 
-            res.render('galleryF1', { inforGalleryPage });
+            res.render('galleryF1', { 
+                inforGalleryPage,
+                selectedYear,
+                selectedTeam,
+                selectedRace
+            });
 
         } catch (error) {
             console.error('Error al procesar la solicitud:', error);
@@ -295,7 +350,6 @@ export class RenderController{
                 return sendUnauthorized(res, undefined, ip, 'Token inválido', endpoint);
             }
             const circuitsInfo = await endpointsController.getCircuits();
-            console.log("circuitsInfo", circuitsInfo);
 
             res.render('circuits', { circuitsInfo });
         } catch (error) {
@@ -321,15 +375,13 @@ export class RenderController{
                 console.error('Decodificación fallida, no es un objeto válido.');
                 return sendUnauthorized(res, undefined, ip, 'Token inválido', endpoint);
             }
-            console.log("req.params.id:", req.query.id);  // Log más específico
-
+            
             const id = req.query.id as string;  // Trata como string directamente
 
             if (!id) {
                 return sendBadParam(res, undefined, ip, 'El id del circuito es obligatorio', endpoint);
             }
             const circuit = await endpointsController.loadCircuitDetails(id);
-            console.log("circuit details:", circuit);
             res.render('circuitDetails', { circuit });
         } catch (error) {
             console.error('Error al cargar información del circuito:', error);
@@ -337,5 +389,48 @@ export class RenderController{
         }
     };
 
+    // API: Obtener equipos por año
+    getTeamsByYearAPI = async (req: Request, res: Response) => {
+        try {
+            const year = parseInt(req.params.year);
+            
+            if (isNaN(year) || year < 1950 || year > new Date().getFullYear()) {
+                return res.status(400).json({ 
+                    success: false, 
+                    message: 'Año inválido' 
+                });
+            }
+
+            const result = await endpointsController.getTeamsByYear(year);
+            return res.json(result.teams);
+        } catch (error) {
+            return res.status(500).json({ 
+                success: false, 
+                message: 'Error al obtener equipos' 
+            });
+        }
+    };
+
+    // API: Obtener circuitos por año
+    getCircuitsByYearAPI = async (req: Request, res: Response) => {
+        try {
+            const year = parseInt(req.params.year);
+            
+            if (isNaN(year) || year < 1950 || year > new Date().getFullYear()) {
+                return res.status(400).json({ 
+                    success: false, 
+                    message: 'Año inválido' 
+                });
+            }
+
+            const result = await endpointsController.getCircuitsByYear(year);
+            return res.json(result);
+        } catch (error) {
+            return res.status(500).json({ 
+                success: false, 
+                message: 'Error al obtener circuitos' 
+            });
+        }
+    };
 
     };
