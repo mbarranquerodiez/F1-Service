@@ -1,6 +1,5 @@
 import { Request, Response } from 'express';
 import db from '../config/db';
-import { sendOk, sendBadParam, sendUnauthorized, sendServerError, sendConflict, sendNotFound } from '../utils/messages';
 import { verifyToken } from '../utils/tokenDecode';
 import {EndPoitnsController} from './endpointsController';
 import { info } from 'console';
@@ -18,7 +17,11 @@ export class RenderController{
             res.render('login');
         } catch (error) {
             console.error('Error al renderizar la página de login:', error);
-            return sendServerError(res, undefined, ip, 'Error en el servidor', endpoint);
+            return res.render("errorPage", {
+                errorCode: 500,
+                errorMessage: 'Error interno del servidor',
+                errorDetails: 'No se pudo cargar la página de login'
+            });
         }
     }; 
     renderCreateAccount = async (req: Request, res: Response) => {
@@ -29,7 +32,11 @@ export class RenderController{
             res.render('createAccount');
         } catch (error) {
             console.error('Error al renderizar la página de createAccount:', error);
-            return sendServerError(res, undefined, ip, 'Error en el servidor', endpoint);
+            return res.render("errorPage", {
+                errorCode: 500,
+                errorMessage: 'Error interno del servidor',
+                errorDetails: 'No se pudo cargar la página de registro'
+            });
         }
     }; 
     renderChangePassword = async (req: Request, res: Response) => {
@@ -40,7 +47,11 @@ export class RenderController{
             res.render('changePassword');
         } catch (error) {
             console.error('Error al renderizar la página de changePassword:', error);
-            return sendServerError(res, undefined, ip, 'Error en el servidor', endpoint);
+            return res.render("errorPage", {
+                errorCode: 500,
+                errorMessage: 'Error interno del servidor',
+                errorDetails: 'No se pudo cargar la página de cambio de contraseña'
+            });
         }
     };
     renderHome = async (req: Request, res: Response) => {
@@ -51,8 +62,11 @@ export class RenderController{
     
     
         if (!token) {
-    
-            return sendUnauthorized(res, undefined, ip, 'Token no proporcionado', endpoint);
+            return res.render("errorPage", {
+                errorCode: 401,
+                errorMessage: 'Acceso no autorizado',
+                errorDetails: 'Debes iniciar sesión para acceder a esta página'
+            });
         }
     
         
@@ -62,7 +76,11 @@ export class RenderController{
     
             if (typeof decoded !== 'object' || decoded === null) {
                 console.error('Decodificación fallida, no es un objeto válido.');
-                return sendUnauthorized(res, undefined, ip, 'Token inválido', endpoint);
+                return res.render("errorPage", {
+                    errorCode: 401,
+                    errorMessage: 'Sesión inválida',
+                    errorDetails: 'Tu sesión ha expirado. Por favor, inicia sesión nuevamente.'
+                });
             }
             const infoHomeRacesInfo = await endpointsController.getRacesInfo();
 
@@ -70,7 +88,11 @@ export class RenderController{
             res.render('home', {infoHomeRacesInfo});
         } catch (error) {
             console.error('Error al procesar la solicitud:', error);
-            return sendServerError(res, undefined, ip, 'Error en el servidor', endpoint);
+            return res.render("errorPage", {
+                errorCode: 500,
+                errorMessage: 'Error interno del servidor',
+                errorDetails: 'No se pudo cargar la página principal'
+            });
         }
     };  
     renderAllRacesByYear = async (req: Request, res: Response) => {
@@ -92,8 +114,11 @@ export class RenderController{
        
     
         if (!token) {
-    
-            return sendUnauthorized(res, undefined, ip, 'Token no proporcionado', endpoint);
+            return res.render("errorPage", {
+                errorCode: 401,
+                errorMessage: 'Acceso no autorizado',
+                errorDetails: 'Debes iniciar sesión para acceder a esta página'
+            });
         }
     
         
@@ -103,7 +128,11 @@ export class RenderController{
 
             if (typeof decoded !== 'object' || decoded === null) {
                 console.error('Decodificación fallida, no es un objeto válido.');
-                return sendUnauthorized(res, undefined, ip, 'Token inválido', endpoint);
+                return res.render("errorPage", {
+                    errorCode: 401,
+                    errorMessage: 'Sesión inválida',
+                    errorDetails: 'Tu sesión ha expirado. Por favor, inicia sesión nuevamente.'
+                });
             }
 
 
@@ -115,7 +144,11 @@ export class RenderController{
     
         } catch (error) {
             console.error('Error al procesar la solicitud:', error);
-            return sendServerError(res, undefined, ip, 'Error en el servidor', endpoint);
+            return res.render("errorPage", {
+                errorCode: 500,
+                errorMessage: 'Error interno del servidor',
+                errorDetails: 'No se pudieron cargar las carreras. Inténtalo de nuevo más tarde.'
+            });
         }
     };
     renderRaceDetails = async (req: Request, res: Response) => {
@@ -131,12 +164,19 @@ export class RenderController{
         const roundStr = req.query.round as string;
 
         if (!city || !country || !timestamp) {
-            return res.status(400).json({ error: 'Faltan parámetros obligatorios' });
+            return res.render("errorPage", {
+                errorCode: 400,
+                errorMessage: 'Parámetros faltantes',
+                errorDetails: 'Faltan parámetros obligatorios: ciudad, país y fecha de la carrera.'
+            });
         }
 
           if (!token) {
-    
-            return sendUnauthorized(res, undefined, ip, 'Token no proporcionado', endpoint);
+            return res.render("errorPage", {
+                errorCode: 401,
+                errorMessage: 'Acceso no autorizado',
+                errorDetails: 'Debes iniciar sesión para acceder a esta página'
+            });
         }
 
         try {
@@ -145,7 +185,11 @@ export class RenderController{
     
             if (typeof decoded !== 'object' || decoded === null) {
                 console.error('Decodificación fallida, no es un objeto válido.');
-                return sendUnauthorized(res, undefined, ip, 'Token inválido', endpoint);
+                return res.render("errorPage", {
+                    errorCode: 401,
+                    errorMessage: 'Sesión inválida',
+                    errorDetails: 'Tu sesión ha expirado. Por favor, inicia sesión nuevamente.'
+                });
             }
 
             const infoRaceDetails = await endpointsController.getRaceDetails(city, country, timestamp);
@@ -169,20 +213,18 @@ export class RenderController{
                 });
             }else{
                 res.render("errorPage", { 
-                    error: {
-                        message: (infoRaceDetails as any).message || 'Error al obtener detalles de la carrera',
-                        details: 'No se pudieron obtener los datos meteorológicos para esta carrera'
-                    }
+                    errorCode: 404,
+                    errorMessage: (infoRaceDetails as any).message || 'Error al obtener detalles de la carrera',
+                    errorDetails: 'No se pudieron obtener los datos meteorológicos para esta carrera'
                 });
             }
 
         } catch (error) {
             console.error('Error al procesar la solicitud:', error);
             return res.render("errorPage", { 
-                error: {
-                    message: 'Error del servidor',
-                    details: 'Ocurrió un error al procesar la solicitud de detalles de la carrera'
-                }
+                errorCode: 500,
+                errorMessage: 'Error del servidor',
+                errorDetails: 'Ocurrió un error al procesar la solicitud de detalles de la carrera'
             });
         }
 
@@ -200,12 +242,20 @@ export class RenderController{
     
       // Validate year
       if (isNaN(year) || year < 1900 || year > 2100) {
-        return res.status(400).json({ error: 'Invalid year' });
+        return res.render("errorPage", {
+            errorCode: 400,
+            errorMessage: 'Parámetro inválido',
+            errorDetails: `El año ${year} no es válido. Debe estar entre 1900 y 2100.`
+        });
       }
          
      
           if (!token) {
-                return sendUnauthorized(res, undefined, ip, 'Token no proporcionado', endpoint);
+                return res.render("errorPage", {
+                    errorCode: 401,
+                    errorMessage: 'Acceso no autorizado',
+                    errorDetails: 'Debes iniciar sesión para acceder a esta página'
+                });
             }
     
         
@@ -215,7 +265,11 @@ export class RenderController{
     
             if (typeof decoded !== 'object' || decoded === null) {
                 console.error('Decodificación fallida, no es un objeto válido.');
-                return sendUnauthorized(res, undefined, ip, 'Token inválido', endpoint);
+                return res.render("errorPage", {
+                    errorCode: 401,
+                    errorMessage: 'Sesión inválida',
+                    errorDetails: 'Tu sesión ha expirado. Por favor, inicia sesión nuevamente.'
+                });
             }
     
     
@@ -233,7 +287,11 @@ export class RenderController{
     
         } catch (error) {
             console.error('Error al procesar la solicitud:', error);
-            return sendServerError(res, undefined, ip, 'Error en el servidor', endpoint);
+            return res.render("errorPage", {
+                errorCode: 500,
+                errorMessage: 'Error interno del servidor',
+                errorDetails: 'No se pudieron cargar los pilotos. Inténtalo de nuevo más tarde.'
+            });
         }
     }
     renderDriverDetails = async (req: Request, res: Response) => {
@@ -247,12 +305,20 @@ export class RenderController{
     
         // Validar parámetros
         if (isNaN(year) || year < 1900 || year > 2100 || !driverId) {
-            return res.status(400).json({ error: 'Invalid year or driverId' });
+            return res.render("errorPage", {
+                errorCode: 400,
+                errorMessage: 'Parámetros inválidos',
+                errorDetails: 'El año o el ID del piloto proporcionados no son válidos.'
+            });
         }
 
         // Validar token
         if (!token) {
-            return sendUnauthorized(res, undefined, ip, 'Token no proporcionado', endpoint);
+            return res.render("errorPage", {
+                errorCode: 401,
+                errorMessage: 'Acceso no autorizado',
+                errorDetails: 'Debes iniciar sesión para acceder a esta página'
+            });
         }
 
         try {
@@ -260,7 +326,11 @@ export class RenderController{
 
             if (typeof decoded !== 'object' || decoded === null) {
                 console.error('Decodificación fallida, no es un objeto válido.');
-                return sendUnauthorized(res, undefined, ip, 'Token inválido', endpoint);
+                return res.render("errorPage", {
+                    errorCode: 401,
+                    errorMessage: 'Sesión inválida',
+                    errorDetails: 'Tu sesión ha expirado. Por favor, inicia sesión nuevamente.'
+                });
             }
 
             const infoDriverDetails = await endpointsController.getDriverDetails(year, driverId);
@@ -269,16 +339,19 @@ export class RenderController{
                 res.render('driverDetails', {year, infoDriverDetails});
             }else{
                 res.render("errorPage", {
-                    error: {
-                        message: (infoDriverDetails as any).message || 'Error al obtener detalles del piloto',
-                        details: 'No se pudieron obtener los datos del piloto'
-                    }
+                    errorCode: 404,
+                    errorMessage: (infoDriverDetails as any).message || 'Error al obtener detalles del piloto',
+                    errorDetails: 'No se pudieron obtener los datos del piloto'
                 });
             }
 
         } catch (error) {
             console.error('Error al procesar la solicitud:', error);
-            return sendServerError(res, undefined, ip, 'Error en el servidor', endpoint);
+            return res.render("errorPage", {
+                errorCode: 500,
+                errorMessage: 'Error interno del servidor',
+                errorDetails: 'No se pudieron cargar los detalles del piloto. Inténtalo de nuevo más tarde.'
+            });
         }
     }
     renderGallery = async (req: Request, res: Response) => {
@@ -290,7 +363,11 @@ export class RenderController{
     
     
           if (!token) {
-                return sendUnauthorized(res, undefined, ip, 'Token no proporcionado', endpoint);
+                return res.render("errorPage", {
+                    errorCode: 401,
+                    errorMessage: 'Acceso no autorizado',
+                    errorDetails: 'Debes iniciar sesión para acceder a esta página'
+                });
             }
     
         
@@ -325,7 +402,11 @@ export class RenderController{
 
         } catch (error) {
             console.error('Error al procesar la solicitud:', error);
-            return sendServerError(res, undefined, ip, 'Error en el servidor', endpoint);
+            return res.render("errorPage", {
+                errorCode: 500,
+                errorMessage: 'Error interno del servidor',
+                errorDetails: 'No se pudo cargar la galería. Inténtalo de nuevo más tarde.'
+            });
         }
     }
     renderCircuits = async (req: Request, res: Response) => {
@@ -337,7 +418,11 @@ export class RenderController{
     
     
           if (!token) {
-                return sendUnauthorized(res, undefined, ip, 'Token no proporcionado', endpoint);
+                return res.render("errorPage", {
+                    errorCode: 401,
+                    errorMessage: 'Acceso no autorizado',
+                    errorDetails: 'Debes iniciar sesión para acceder a esta página'
+                });
             }
     
         
@@ -347,14 +432,22 @@ export class RenderController{
     
             if (typeof decoded !== 'object' || decoded === null) {
                 console.error('Decodificación fallida, no es un objeto válido.');
-                return sendUnauthorized(res, undefined, ip, 'Token inválido', endpoint);
+                return res.render("errorPage", {
+                    errorCode: 401,
+                    errorMessage: 'Sesión inválida',
+                    errorDetails: 'Tu sesión ha expirado. Por favor, inicia sesión nuevamente.'
+                });
             }
             const circuitsInfo = await endpointsController.getCircuits();
 
             res.render('circuits', { circuitsInfo });
         } catch (error) {
             console.error('Error al procesar la solicitud:', error);
-            return sendServerError(res, undefined, ip, 'Error en el servidor', endpoint);
+            return res.render("errorPage", {
+                errorCode: 500,
+                errorMessage: 'Error interno del servidor',
+                errorDetails: 'No se pudieron cargar los circuitos. Inténtalo de nuevo más tarde.'
+            });
         }
     };
     loadCircuitDetails = async (req: Request, res: Response) => {
@@ -364,7 +457,11 @@ export class RenderController{
         const ip = req.headers['x-forwarded-for'] as string || req.socket.remoteAddress || '';
 
         if (!token) {
-            return sendUnauthorized(res, undefined, ip, 'Token no proporcionado', endpoint);
+            return res.render("errorPage", {
+                errorCode: 401,
+                errorMessage: 'Acceso no autorizado',
+                errorDetails: 'Debes iniciar sesión para acceder a esta página'
+            });
         }
 
         try {
@@ -373,19 +470,31 @@ export class RenderController{
 
             if (typeof decoded !== 'object' || decoded === null) {
                 console.error('Decodificación fallida, no es un objeto válido.');
-                return sendUnauthorized(res, undefined, ip, 'Token inválido', endpoint);
+                return res.render("errorPage", {
+                    errorCode: 401,
+                    errorMessage: 'Sesión inválida',
+                    errorDetails: 'Tu sesión ha expirado. Por favor, inicia sesión nuevamente.'
+                });
             }
             
             const id = req.query.id as string;  // Trata como string directamente
 
             if (!id) {
-                return sendBadParam(res, undefined, ip, 'El id del circuito es obligatorio', endpoint);
+                return res.render("errorPage", {
+                    errorCode: 400,
+                    errorMessage: 'Parámetro faltante',
+                    errorDetails: 'El ID del circuito es obligatorio.'
+                });
             }
             const circuit = await endpointsController.loadCircuitDetails(id);
             res.render('circuitDetails', { circuit });
         } catch (error) {
             console.error('Error al cargar información del circuito:', error);
-            throw error;
+            return res.render("errorPage", {
+                errorCode: 500,
+                errorMessage: 'Error interno del servidor',
+                errorDetails: 'No se pudieron cargar los detalles del circuito. Inténtalo de nuevo más tarde.'
+            });
         }
     };
 
