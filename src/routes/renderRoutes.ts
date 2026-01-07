@@ -7,6 +7,10 @@ const renderController = new RenderController;
 router.get('/', renderController.renderLogin);
 router.get('/createAccount', renderController.renderCreateAccount);
 router.get('/changePassword', renderController.renderChangePassword);
+router.get('/logout', (req, res) => {
+    res.clearCookie('token');
+    res.redirect('/');
+});
 router.get('/home', renderController.renderHome);
 router.get('/getRacesByYear',renderController.renderAllRacesByYear);
 router.get('/getDriversByYear',renderController.renderAllDriversByYear);
