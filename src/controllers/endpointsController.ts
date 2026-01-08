@@ -565,10 +565,15 @@ export class EndPoitnsController {
         const query = queryParts.join(' ');
         console.log("Query de búsqueda construido:", query);
 
-        // Generar página aleatoria entre 1 y 10 para obtener imágenes diferentes
-        const randomPage = Math.floor(Math.random() * 10) + 1;
+        // Solo usar página random si no hay filtros aplicados (página de inicio)
+        const hasFilters = filters && (
+            (filters.year && filters.year.trim() !== '') ||
+            (filters.team && filters.team.trim() !== '') ||
+            (filters.race && filters.race.trim() !== '')
+        );
+        const page = hasFilters ? 1 : Math.floor(Math.random() * 10) + 1;
         
-        const apiUrl = `https://api.unsplash.com/search/photos?query=${encodeURIComponent(query)}&per_page=20&page=${randomPage}`;
+        const apiUrl = `https://api.unsplash.com/search/photos?query=${encodeURIComponent(query)}&per_page=20&page=${page}`;
         console.log("URL de API:", apiUrl);
 
         const response = await fetch(apiUrl, {
