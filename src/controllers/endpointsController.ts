@@ -1,111 +1,217 @@
 import { Request, Response } from 'express';
 import db from '../config/db';
 import { ResultSetHeader, RowDataPacket } from 'mysql2';
-import { sendOk, sendBadParam, sendUnauthorized, sendServerError, sendConflict, sendNotFound } from '../utils/messages';
-import { verifyToken } from '../utils/tokenDecode';
-
-
 
 export class EndPoitnsController {
 
     getRaceDetails = async (city : string , country : string, timestamp : string) => {
-        
-
-        console.log("city",city);
-        console.log("country",country);
-        console.log("timestamp",timestamp);
-    
         if (!city || !country || !timestamp) {
-            const response = {
+            return {
                 success: false,
                 message: "Faltan parámetros obligatorios"
             };
-            return response;
         }
     
         try {
-            // 1. Obtener coordenadas con Nominatim
-            const nominatimUrl = `https://nominatim.openstreetmap.org/search?city=${encodeURIComponent(city)}&country=${encodeURIComponent(country)}&format=json`;
-            console.log('Petición a la URL Nominatim:', nominatimUrl);
             const fetch = require('node-fetch');
-            const nominatimRes = await fetch(nominatimUrl);
+            
+            // 1. Obtener coordenadas con Nominatim
+            let nominatimUrl = `https://nominatim.openstreetmap.org/search?city=${encodeURIComponent(city)}&country=${encodeURIComponent(country)}&format=json`;
+            
+            let nominatimRes = await fetch(nominatimUrl);
             if (!nominatimRes.ok) {
-
-                const response = {
+                return {
                     success: false,
                     message: "Error al consultar la API de Nominatim"
                 };
-                return response;
             }
-            const nominatimData = await nominatimRes.json();
+            
+            let nominatimData = await nominatimRes.json();
+            
+            // Si no se encuentra la ciudad, intentar solo con el país
             if (!Array.isArray(nominatimData) || nominatimData.length === 0) {
-
-                const response = {
-                    success: false,
-                    message: "No se encontraron coordenadas para la ciudad y país proporcionados"
-                };
-                return response;
+                nominatimUrl = `https://nominatim.openstreetmap.org/search?country=${encodeURIComponent(country)}&format=json`;
+                nominatimRes = await fetch(nominatimUrl);
+                
+                if (!nominatimRes.ok) {
+                    return {
+                        success: false,
+                        message: "Error al consultar la API de Nominatim"
+                    };
+                }
+                
+                nominatimData = await nominatimRes.json();
+                
+                if (!Array.isArray(nominatimData) || nominatimData.length === 0) {
+                    return {
+                        success: false,
+                        message: "No se encontraron coordenadas para la ciudad y país proporcionados"
+                    };
+                }
             }
+            
             const { lat, lon, display_name } = nominatimData[0];
     
-            // 2. Obtener tiempo con Open-Meteo (histórico o pronóstico)
-            const date = timestamp.substring(0,10);
-            const hour = timestamp.substring(11,16); // HH:mm
+            // 2. Obtener datos meteorológicos de Open-Meteo
+            const date = timestamp.substring(0,10); // YYYY-MM-DD
+            const hourSpain = timestamp.substring(11,16); // HH:mm en hora de España
+            
             const today = new Date().toISOString().substring(0,10);
             let meteoUrl;
+            
             if (date < today) {
-                // Datos históricos desde el año 2000 usando archive-api
+                // Datos históricos
                 meteoUrl = `https://archive-api.open-meteo.com/v1/archive?latitude=${lat}&longitude=${lon}&hourly=temperature_2m,rain,precipitation&start_date=${date}&end_date=${date}&timezone=auto`;
             } else {
-                // Datos actuales/futuros
+                // Datos futuros/actuales
                 meteoUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=temperature_2m,precipitation&start_date=${date}&end_date=${date}&timezone=auto`;
             }
+            
             const meteoRes = await fetch(meteoUrl);
+            
             if (!meteoRes.ok) {
-                const response = {
+                return {
                     success: false,
                     message: "Error al consultar la API de Open-Meteo"
                 };
-                return response;
             }
+            
             const meteoData = await meteoRes.json();
+            
             if (!meteoData.hourly || !meteoData.hourly.time) {
-                const response = {
+                return {
                     success: false,
                     message: "No se encontraron datos meteorológicos"
                 };
-                return response;
-            }
-            // Buscar el índice de la hora exacta
-            const index = meteoData.hourly.time.findIndex((t: string) => t.substring(11,16) === hour);
-            if (index === -1) {
-                const response = {
-                    success: false,
-                    message: "No se encontraron datos para ese momento"
-                };
-                return response;
             }
             
-            // Devolver solo temperatura y lluvia
+            // 3. Calcular conversión horaria
+            const circuitTimezone = meteoData.timezone || 'UTC';
+            const circuitOffsetSeconds = meteoData.utc_offset_seconds || 0;
+            
+            // Calcular offset de España (CET/CEST) en la fecha de la carrera
+            const raceDate = new Date(date + 'T00:00:00Z');
+            const year = raceDate.getUTCFullYear();
+            
+            // Último domingo de marzo (cambio a horario de verano)
+            let marchLastSunday = new Date(Date.UTC(year, 2, 31, 1, 0, 0));
+            while (marchLastSunday.getUTCDay() !== 0) {
+                marchLastSunday.setUTCDate(marchLastSunday.getUTCDate() - 1);
+            }
+            
+            // Último domingo de octubre (cambio a horario de invierno)
+            let octoberLastSunday = new Date(Date.UTC(year, 9, 31, 1, 0, 0));
+            while (octoberLastSunday.getUTCDay() !== 0) {
+                octoberLastSunday.setUTCDate(octoberLastSunday.getUTCDate() - 1);
+            }
+            
+            const isDST = raceDate >= marchLastSunday && raceDate < octoberLastSunday;
+            const spainOffsetSeconds = isDST ? 7200 : 3600; // CEST (UTC+2) o CET (UTC+1)
+            
+            // Calcular diferencia horaria
+            const offsetDiffSeconds = circuitOffsetSeconds - spainOffsetSeconds;
+            const offsetDiffHours = offsetDiffSeconds / 3600;
+            
+            // Convertir hora de España a hora local del circuito
+            const [hoursSpain, minutesSpain] = hourSpain.split(':').map(Number);
+            let hoursLocal = hoursSpain + offsetDiffHours;
+            const minutesLocal = minutesSpain;
+            
+            // Ajustar si sale del rango 0-23
+            while (hoursLocal >= 24) hoursLocal -= 24;
+            while (hoursLocal < 0) hoursLocal += 24;
+            
+            const raceLocalHour = String(Math.floor(hoursLocal)).padStart(2, '0') + ':' + String(minutesLocal).padStart(2, '0');
+            
+            // 4. Buscar el índice de la hora de la carrera
+            let raceIndex = meteoData.hourly.time.findIndex((t: string) => t.substring(11,16) === raceLocalHour);
+            
+            if (raceIndex === -1) {
+                const [targetHourStr] = raceLocalHour.split(':');
+                const targetHour = parseInt(targetHourStr);
+                raceIndex = meteoData.hourly.time.findIndex((t: string) => parseInt(t.substring(11,13)) === targetHour);
+                
+                if (raceIndex === -1) {
+                    return {
+                        success: false,
+                        message: `No se encontraron datos para la hora ${raceLocalHour}`
+                    };
+                }
+            }
+            
+
+            // 5. Preparar datos horarios
+            const hourlyData = meteoData.hourly.time.map((time: string, i: number) => ({
+                time: time.substring(11,16),
+                temperature: meteoData.hourly.temperature_2m[i],
+                rain: meteoData.hourly.rain ? meteoData.hourly.rain[i] : (meteoData.hourly.precipitation ? meteoData.hourly.precipitation[i] : 0)
+            }));
+            
+            // 6. Preparar respuesta
             const result = {
-                temperature: meteoData.hourly.temperature_2m[index],
-                rain: meteoData.hourly.rain ? meteoData.hourly.rain[index] : undefined
+                city,
+                country,
+                date,
+                raceTime: raceLocalHour,
+                raceTimeSpain: hourSpain,
+                timezone: circuitTimezone,
+                offsetDiff: offsetDiffHours,
+                temperature: meteoData.hourly.temperature_2m[raceIndex],
+                rain: meteoData.hourly.rain ? meteoData.hourly.rain[raceIndex] : (meteoData.hourly.precipitation ? meteoData.hourly.precipitation[raceIndex] : 0),
+                hourlyData
             };
 
-            const response = {
+            return {
                 success: true,
-                raceDetails:result
+                raceDetails: result
             };
-            console.log('Response:', response);
-            return response
-
+            
         } catch (error) {
-            console.error('Error al procesar la solicitud:', error);
-            const response = {
+            console.error('❌ Error en getRaceDetails:', error);
+            return {
                 success: false,
                 message: 'Error al procesar la solicitud'
             };
-            return response;
+        }
+    };
+
+    getRaceResults = async (year: number, round: number) => {
+        try {
+            const fetch = require('node-fetch');
+            
+            // Llamar directamente a la API con año y round
+            const resultsUrl = `https://f1api.dev/api/${year}/${round}/race`;
+            
+            const resultsResponse = await fetch(resultsUrl);
+            if (!resultsResponse.ok) {
+                return {
+                    success: false,
+                    message: 'No se pudieron obtener los resultados de la carrera'
+                };
+            }
+            
+            const resultsData = await resultsResponse.json();
+            
+            if (!resultsData.races || !resultsData.races.results) {
+                return {
+                    success: false,
+                    message: 'No hay resultados disponibles para esta carrera'
+                };
+            }
+            
+            return {
+                success: true,
+                results: resultsData.races.results,
+                raceName: resultsData.races.raceName,
+                round: resultsData.races.round
+            };
+            
+        } catch (error) {
+            console.error('❌ Error al obtener resultados de la carrera:', error);
+            return {
+                success: false,
+                message: 'Error al procesar la solicitud de resultados'
+            };
         }
     };
 
@@ -116,23 +222,49 @@ export class EndPoitnsController {
           if (!year || isNaN(year) || year < 1950 || year > new Date().getFullYear()) {
             throw new Error('Invalid year provided');
           }
-          // Llamada a la API externa de OpenF1
-          const apiUrl = `https://f1api.dev/api/${year}`;
-          const response = await fetch(apiUrl);
-      
-          if (!response.ok) {
-            throw new Error(`API request failed with status ${response.status}`);
+          
+          let currentYear = year;
+          let attempts = 0;
+          const maxAttempts = 2; // Intentar año actual + 1 año anterior
+          
+          while (attempts < maxAttempts) {
+            try {
+              // Llamada a la API externa de OpenF1
+              const apiUrl = `https://f1api.dev/api/${currentYear}`;
+              const response = await fetch(apiUrl);
+          
+              if (response.ok) {
+                const data = await response.json();
+                
+                // Verificar si races existe y es un array con datos
+                if (Array.isArray(data.races) && data.races.length > 0) {
+                  return { races: data.races, actualYear: currentYear };
+                }
+                
+                // Si la respuesta es OK pero no hay races, intentar año anterior
+                console.log(`No hay carreras para ${currentYear}, intentando con ${currentYear - 1}`);
+                currentYear--;
+                attempts++;
+                continue;
+              }
+              
+              // Si es 404 o no hay datos, intentar con el año anterior
+              if (response.status === 404 || !response.ok) {
+                console.log(`No hay datos para ${currentYear}, intentando con ${currentYear - 1}`);
+                currentYear--;
+                attempts++;
+                continue;
+              }
+              
+            } catch (fetchError) {
+              console.log(`Error al obtener datos para ${currentYear}:`, fetchError);
+              currentYear--;
+              attempts++;
+            }
           }
-      
-          const data = await response.json();
-
-      
-          // Verificar si races existe y es un array
-          if (!Array.isArray(data.races) || data.races.length === 0) {
-            return [];
-          }
-      
-          return data.races;
+          
+          // Si después de todos los intentos no hay datos
+          return { races: [], actualYear: year };
       
         } catch (error) {
           throw error; // Re-lanzar el error para que el llamador lo maneje
@@ -173,46 +305,76 @@ export class EndPoitnsController {
             if (!year) {
                 const response = {
                     success: false,
-                    message: "No se proporcionó el año"
+                    message: "No se proporcionó el año",
+                    actualYear: year
                 };
                 return response;
             }
-            const apiUrl = `https://f1api.dev/api/${year}/drivers`;
-            const fetch = require('node-fetch');
-            const response = await fetch(apiUrl);
-            if (!response.ok) {
-                const response = {
-                    success: false,
-                    message: "No se encontraron datos de pilotos"
-                };
-                return response;
-            }
-            const data = await response.json();
+            
+            let currentYear = year;
+            let attempts = 0;
+            const maxAttempts = 2; // Intentar año actual + 1 año anterior
+            
+            while (attempts < maxAttempts) {
+                try {
+                    const apiUrl = `https://f1api.dev/api/${currentYear}/drivers`;
+                    const fetch = require('node-fetch');
+                    const response = await fetch(apiUrl);
+                    
+                    if (response.ok) {
+                        const data = await response.json();
 
-            let drivers: any[] | undefined = undefined;
-            if (Array.isArray(data?.drivers)) {
-                drivers = data.drivers;
-            } else if (Array.isArray(data)) {
-                drivers = data;
-            }
+                        let drivers: any[] | undefined = undefined;
+                        if (Array.isArray(data?.drivers)) {
+                            drivers = data.drivers;
+                        } else if (Array.isArray(data)) {
+                            drivers = data;
+                        }
 
-            if (!drivers || drivers.length === 0) {
-                const response ={
-                    success: false,
-                    message: "No se encontraron pilotos para ese año"
-                };
-                return response;
+                        if (drivers && drivers.length > 0) {
+                            const responseData = {
+                                success: true,
+                                drivers: drivers,
+                                actualYear: currentYear
+                            };
+                            return responseData;
+                        }
+                        
+                        // Si hay respuesta OK pero no hay drivers, intentar año anterior
+
+                        currentYear--;
+                        attempts++;
+                        continue;
+                    }
+                    
+                    // Si es 404 o no hay datos, intentar con el año anterior
+                    if (response.status === 404 || !response.ok) {
+
+                        currentYear--;
+                        attempts++;
+                        continue;
+                    }
+                    
+                } catch (fetchError) {
+                    console.log(`Error al obtener pilotos para ${currentYear}:`, fetchError);
+                    currentYear--;
+                    attempts++;
+                }
             }
-            const responseData = {
-                success: true,
-                drivers: drivers
+            
+            // Si después de todos los intentos no hay datos
+            const response = {
+                success: false,
+                message: "No se encontraron datos de pilotos",
+                actualYear: year
             };
-
-            return responseData;
+            return response;
+            
         } catch (error) {
             const response ={
                 success: false,
-                message:"Error al realizar petición a la API externa"
+                message:"Error al realizar petición a la API externa",
+                actualYear: year
             }
             return response;
         };
@@ -370,7 +532,7 @@ export class EndPoitnsController {
 
     getGalleryPageInfo = async (filters: any) => {
 
-        console.log("1")
+        console.log("Filtros recibidos en getGalleryPageInfo:", filters);
 
 
     try {
@@ -379,20 +541,40 @@ export class EndPoitnsController {
         if (!UNSPLASH_ACCESS_KEY) {
             throw new Error('Clave de API de Unsplash no configurada');
         }
-        console.log("2")
 
-        // Parámetros base para la API
-        let query = '';
-        if (filters === null) {
-            query = 'Formula1'; // Caso especial: búsqueda solo con "Formula1"
-        } else if (filters && filters.query) {
-            query = filters.query;
+        // Construir query de búsqueda a partir de los filtros
+        let queryParts: string[] = ['Formula 1']; // Siempre incluir "Formula 1"
+        
+        if (filters && filters !== null) {
+            // Agregar año si existe
+            if (filters.year && filters.year.trim() !== '') {
+                queryParts.push(filters.year);
+            }
+            
+            // Agregar equipo si existe
+            if (filters.team && filters.team.trim() !== '') {
+                queryParts.push(filters.team);
+            }
+            
+            // Agregar carrera si existe
+            if (filters.race && filters.race.trim() !== '') {
+                queryParts.push(filters.race);
+            }
         }
-        // Puedes agregar más filtros si es necesario
-        console.log("3")
+        
+        const query = queryParts.join(' ');
+        console.log("Query de búsqueda construido:", query);
 
-        const apiUrl = `https://api.unsplash.com/search/photos?query=${encodeURIComponent(query)}&per_page=20`;
-        console.log("4")
+        // Solo usar página random si no hay filtros aplicados (página de inicio)
+        const hasFilters = filters && (
+            (filters.year && filters.year.trim() !== '') ||
+            (filters.team && filters.team.trim() !== '') ||
+            (filters.race && filters.race.trim() !== '')
+        );
+        const page = hasFilters ? 1 : Math.floor(Math.random() * 10) + 1;
+        
+        const apiUrl = `https://api.unsplash.com/search/photos?query=${encodeURIComponent(query)}&per_page=20&page=${page}`;
+        console.log("URL de API:", apiUrl);
 
         const response = await fetch(apiUrl, {
             method: 'GET',
@@ -438,6 +620,118 @@ export class EndPoitnsController {
         return { success: false, message: 'Error al obtener información de la galería' };
     }
     }
+
+    // Helper privado para llamadas a la API de F1
+    private async fetchF1API(endpoint: string, year: number) {
+        let currentYear = year;
+        let attempts = 0;
+        const maxAttempts = 2;
+        
+        while (attempts < maxAttempts) {
+            try {
+                const apiUrl = `https://f1api.dev/api/${currentYear}/${endpoint}`;
+                const response = await fetch(apiUrl);
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    return { success: true, data, actualYear: currentYear };
+                }
+                
+                // Si falla, intentar con año anterior
+                console.log(`No hay datos de ${endpoint} para ${currentYear}, intentando con ${currentYear - 1}`);
+                currentYear--;
+                attempts++;
+            } catch (error) {
+                console.log(`Error al obtener ${endpoint} para ${currentYear}:`, error);
+                currentYear--;
+                attempts++;
+            }
+        }
+        
+        return { success: false, data: null, actualYear: year };
+    }
+
+    // Obtener equipos por año - actualizado
+    getTeamsByYear = async (year: number) => {
+        try {
+            let currentYear = year;
+            let attempts = 0;
+            const maxAttempts = 2;
+            
+            while (attempts < maxAttempts) {
+                try {
+                    const apiUrl = `https://f1api.dev/api/${currentYear}/teams`;
+                    const response = await fetch(apiUrl);
+                    
+                    if (response.ok) {
+                        const data = await response.json();
+                        
+                        if (Array.isArray(data.teams) && data.teams.length > 0) {
+                            const teams = [...new Set(
+                                data.teams
+                                    .map((t: any) => t.teamName)
+                                    .filter(Boolean)
+                            )];
+                            
+
+                            return { 
+                                success: true, 
+                                teams: teams.sort(),
+                                actualYear: currentYear 
+                            };
+                        }
+                        
+                        currentYear--;
+                        attempts++;
+                        continue;
+                    }
+                    
+                    if (response.status === 404 || !response.ok) {
+                        currentYear--;
+                        attempts++;
+                        continue;
+                    }
+                } catch (fetchError) {
+                    console.error(`Error al obtener equipos para ${currentYear}:`, fetchError);
+                    currentYear--;
+                    attempts++;
+                }
+            }
+            
+            return { success: false, teams: [], actualYear: year };
+        } catch (error) {
+            console.error('Error al obtener equipos:', error);
+            return { success: false, teams: [], actualYear: year };
+        }
+    }
+
+    // Obtener circuitos por año
+    getCircuitsByYear = async (year: number) => {
+        try {
+            const result = await this.fetchF1API('', year); // endpoint raíz trae las carreras
+            
+            if (result.success && result.data?.races) {
+                // Extraer circuitos únicos
+                const circuits = result.data.races
+                    .map((race: any) => race.circuit?.circuitName || race.raceName)
+                    .filter(Boolean);
+                
+                // Eliminar duplicados y ordenar
+                const uniqueCircuits = [...new Set(circuits)].sort();
+                
+                return { 
+                    success: true, 
+                    circuits: uniqueCircuits,
+                    actualYear: result.actualYear 
+                };
+            }
+            
+            return { success: false, circuits: [], actualYear: year };
+        } catch (error) {
+            console.error('Error al obtener circuitos:', error);
+            return { success: false, circuits: [], actualYear: year };
+        }
+    }
     
     getCircuits = async (): Promise<any[]> => {  // Añadido: Retorna Promise<any[]> para tipado
     console.log("Entrando en getCircuits");
@@ -452,7 +746,6 @@ export class EndPoitnsController {
             return;
           }
           const circuits = Array.isArray(rows) ? rows : [];
-          console.log("Circuitos obtenidos:", circuits);
           resolve(circuits);  // Resolvemos con los datos
         }
       );
@@ -555,51 +848,9 @@ export class EndPoitnsController {
             geometry
             };
 
-            console.log("Circuit feature:", feature);
             resolve(feature);  // Resuelve con el feature
         }
         );
     });
     };
 }
-
-
-/**
- * Listar todos los circuitos con campos seleccionados.
- * @route GET /api/endpoints/circuits
- * @group Circuits
- * @returns {object} 200 - { circuits: Array<{id, location, name, opened, first_gp, length, altitude}> }
- * @returns {object} 500 - Error interno del servidor
- */
-export const getCircuits = async (req: Request, res: Response) => {
-    const endpoint = `${req.method} ${req.url}`;
-    const ip = (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || '';
-
-    try {
-        db.query(
-            `SELECT 
-                id,
-                location,
-                name,
-                opened,
-                first_gp,
-                length,
-                altitude
-             FROM circuits
-             ORDER BY name DESC`,
-            [],
-            (err, rows: any[]) => {
-                if (err) {
-                    console.error('Error al ejecutar la consulta:', err);
-                    return sendServerError(res, undefined, ip, 'Error al consultar la base de datos', endpoint);
-                }
-
-                const circuits = Array.isArray(rows) ? rows : [];
-                return sendOk(res, undefined, ip, { circuits }, endpoint);
-            }
-        );
-    } catch (error) {
-        console.error('Error al listar circuitos:', error);
-        return sendServerError(res, undefined, ip, 'Error en el servidor', endpoint);
-    }
-};

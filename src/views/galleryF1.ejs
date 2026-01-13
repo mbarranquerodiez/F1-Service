@@ -167,36 +167,56 @@
           <section class="filters card bg-secondary text-light mb-4">
             <div class="card-body">
               <h2 class="card-title">Filtros</h2>
-              <form id="galleryFilterForm" method="GET" action="/galleryPage">
+              <form id="galleryFilterForm" method="GET" action="/gallery">
                 <div class="row">
                   <div class="col-md-4 mb-3">
                     <label for="yearSelect" class="form-label">Año</label>
                     <select id="yearSelect" name="year" class="form-select">
-                      <% for(let y = 1975; y <= 2025; y++) { %>
-                        <option value="<%= y %>" <% if(y == 2025) { %>selected<% } %>><%= y %></option>
+                      <% const currentYear = typeof selectedYear !== 'undefined' ? selectedYear : '2025'; %>
+                      <% for(let y = 1975; y <= new Date().getFullYear(); y++) { %>
+                        <option value="<%= y %>" <% if(y == currentYear) { %>selected<% } %>><%= y %></option>
                       <% } %>
                     </select>
                   </div>
                   <div class="col-md-4 mb-3">
                     <label for="teamSelect" class="form-label">Equipo/Escudería</label>
                     <select id="teamSelect" name="team" class="form-select">
-                      <option value="">Todas</option>
-                      <option value="mclaren">McLaren</option>
-                      <option value="ferrari">Ferrari</option>
-                      <option value="red_bull">Red Bull</option>
-                      <option value="mercedes">Mercedes</option>
-                      <option value="aston_martin">Aston Martin</option>
+                      <% const currentTeam = typeof selectedTeam !== 'undefined' ? selectedTeam : ''; %>
+                      <option value="" <% if(currentTeam === '') { %>selected<% } %>>Todas</option>
+                      <option value="Mercedes" <% if(currentTeam === 'Mercedes') { %>selected<% } %>>Mercedes</option>
+                      <option value="Red Bull Racing" <% if(currentTeam === 'Red Bull Racing') { %>selected<% } %>>Red Bull Racing</option>
+                      <option value="Ferrari" <% if(currentTeam === 'Ferrari') { %>selected<% } %>>Ferrari</option>
+                      <option value="McLaren" <% if(currentTeam === 'McLaren') { %>selected<% } %>>McLaren</option>
+                      <option value="Aston Martin" <% if(currentTeam === 'Aston Martin') { %>selected<% } %>>Aston Martin</option>
+                      <option value="Alpine" <% if(currentTeam === 'Alpine') { %>selected<% } %>>Alpine</option>
+                      <option value="Williams" <% if(currentTeam === 'Williams') { %>selected<% } %>>Williams</option>
+                      <option value="AlphaTauri" <% if(currentTeam === 'AlphaTauri') { %>selected<% } %>>AlphaTauri</option>
+                      <option value="Alfa Romeo" <% if(currentTeam === 'Alfa Romeo') { %>selected<% } %>>Alfa Romeo</option>
+                      <option value="Haas" <% if(currentTeam === 'Haas') { %>selected<% } %>>Haas</option>
+                      <option value="Racing Point" <% if(currentTeam === 'Racing Point') { %>selected<% } %>>Racing Point</option>
+                      <option value="Renault" <% if(currentTeam === 'Renault') { %>selected<% } %>>Renault</option>
                     </select>
                   </div>
                   <div class="col-md-4 mb-3">
                     <label for="raceSelect" class="form-label">Carrera</label>
                     <select id="raceSelect" name="race" class="form-select">
-                      <option value="">Todas</option>
-                      <option value="monaco">Gran Premio de Mónaco</option>
-                      <option value="italy">Gran Premio de Italia</option>
-                      <option value="silverstone">Gran Premio de Gran Bretaña</option>
-                      <option value="monza">Gran Premio de Monza</option>
-                      <option value="spa">Gran Premio de Bélgica</option>
+                      <% const currentRace = typeof selectedRace !== 'undefined' ? selectedRace : ''; %>
+                      <option value="" <% if(currentRace === '') { %>selected<% } %>>Todas</option>
+                      <option value="Monaco" <% if(currentRace === 'Monaco') { %>selected<% } %>>Gran Premio de Mónaco</option>
+                      <option value="Silverstone" <% if(currentRace === 'Silverstone') { %>selected<% } %>>Gran Premio de Gran Bretaña</option>
+                      <option value="Monza" <% if(currentRace === 'Monza') { %>selected<% } %>>Gran Premio de Italia</option>
+                      <option value="Spa" <% if(currentRace === 'Spa') { %>selected<% } %>>Gran Premio de Bélgica</option>
+                      <option value="Barcelona" <% if(currentRace === 'Barcelona') { %>selected<% } %>>Gran Premio de España</option>
+                      <option value="Suzuka" <% if(currentRace === 'Suzuka') { %>selected<% } %>>Gran Premio de Japón</option>
+                      <option value="Interlagos" <% if(currentRace === 'Interlagos') { %>selected<% } %>>Gran Premio de Brasil</option>
+                      <option value="Singapore" <% if(currentRace === 'Singapore') { %>selected<% } %>>Gran Premio de Singapur</option>
+                      <option value="Abu Dhabi" <% if(currentRace === 'Abu Dhabi') { %>selected<% } %>>Gran Premio de Abu Dhabi</option>
+                      <option value="Melbourne" <% if(currentRace === 'Melbourne') { %>selected<% } %>>Gran Premio de Australia</option>
+                      <option value="Austin" <% if(currentRace === 'Austin') { %>selected<% } %>>Gran Premio de Estados Unidos</option>
+                      <option value="Mexico" <% if(currentRace === 'Mexico') { %>selected<% } %>>Gran Premio de México</option>
+                      <option value="Montreal" <% if(currentRace === 'Montreal') { %>selected<% } %>>Gran Premio de Canadá</option>
+                      <option value="Zandvoort" <% if(currentRace === 'Zandvoort') { %>selected<% } %>>Gran Premio de Países Bajos</option>
+                      <option value="Imola" <% if(currentRace === 'Imola') { %>selected<% } %>>Gran Premio de Emilia-Romaña</option>
                     </select>
                   </div>
                 </div>
@@ -247,5 +267,71 @@
     </p>
     <p class="mb-0"><a href="#">Back to top</a></p>
   </footer>
+
+  <script>
+    // Function to load dynamic filters based on year
+    async function loadFiltersForYear(year) {
+      const teamSelect = document.getElementById('teamSelect');
+      const raceSelect = document.getElementById('raceSelect');
+      
+      if (!year) {
+        return;
+      }
+
+      try {
+        // Store current selections
+        const currentTeam = teamSelect.value;
+        const currentRace = raceSelect.value;
+
+        // Fetch teams for selected year
+        const teamsResponse = await fetch(`/api/teams/${year}`);
+        const teams = await teamsResponse.json();
+        
+        // Fetch circuits for selected year
+        const circuitsResponse = await fetch(`/api/circuits/${year}`);
+        const circuitsData = await circuitsResponse.json();
+
+        // Update teams dropdown
+        if (Array.isArray(teams) && teams.length > 0) {
+          teamSelect.innerHTML = '<option value="">Todos</option>';
+          teams.forEach(team => {
+            const option = document.createElement('option');
+            option.value = team;
+            option.textContent = team;
+            option.selected = team === currentTeam;
+            teamSelect.appendChild(option);
+          });
+        }
+
+        // Update circuits dropdown
+        if (circuitsData.success && circuitsData.circuits) {
+          raceSelect.innerHTML = '<option value="">Todas</option>';
+          circuitsData.circuits.forEach(circuit => {
+            const option = document.createElement('option');
+            option.value = circuit;
+            option.textContent = circuit;
+            option.selected = circuit === currentRace;
+            raceSelect.appendChild(option);
+          });
+        }
+
+      } catch (error) {
+        console.error('Error fetching dynamic filters:', error);
+      }
+    }
+
+    // Event listener for year change
+    document.getElementById('yearSelect').addEventListener('change', async function() {
+      await loadFiltersForYear(this.value);
+    });
+
+    // Load filters on page load with current year
+    document.addEventListener('DOMContentLoaded', function() {
+      const yearSelect = document.getElementById('yearSelect');
+      if (yearSelect.value) {
+        loadFiltersForYear(yearSelect.value);
+      }
+    });
+  </script>
 </body>
 </html>
